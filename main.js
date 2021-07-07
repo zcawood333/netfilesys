@@ -21,28 +21,57 @@ app.get('/exist', (req, res) => {
     res.send('Hello world');
 });
 
-app.get('/download/:path', (req, res) => {
+app.get('/download/:uuid', (req, res) => {
     if(debug) {console.log('GET request: ', req.params)};
-
-    let path = `${__dirname}${uploadsDir}${req.params.path}`;
+    let parsedUUIDPath = req.params.uuid;
+    parsedUUIDPath = parsedUUIDPath.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    let path = `${__dirname}${uploadsDir}${parsedUUIDPath}`;
     
     if(debug) {console.log(`path: ${path}`)};
 
     const today = new Date(Date.now());
-    fs.appendFile(downloadLogPath, `${req.params.path},${today.toISOString()}\n`, err => {
+    fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
         if (err) {
-            if (debug) {console.log('file unable to be downloaded', err)};
+            if (debug) {console.log('file download unable to be logged, and therefore will not be downloaded', err)};
             return res.status(500).send(err);
-        } else if(debug) {console.log('file download logged successfully')};
-    });
-    res.download(path, err => {
-        if (err) {
-            if(debug) console.log('file unable to be downloaded');
-            //normally returns full path which may be undesirable to leak so path is reset
-            err.path = req.params.path;
-            return res.status(500).send(err);
+        } else {
+            res.download(path, err => {
+                if (err) {
+                    if(debug) {console.log('file unable to be downloaded', err)};
+
+                    //remove last line from log file
+                    fs.readFile(downloadLogPath, (err, data) => {
+                        if (err) {
+                            if (debug) {console.log('download log file unable to be modified; most recent log is invalid')};
+                        } else {
+                            console.log(data);
+                            //need to slice to -2 because there is a new line character after last entry
+                            let newData = data.toString().split('\n').slice(0,-2).join('\n') + '\n';
+                            fs.writeFile(downloadLogPath, newData, err => {
+                                if (err) {
+                                    if (debug) {console.log('download log file unable to be written to; it may now be corrupted')};
+                                } else {
+                                    if (debug) {console.log('download log file updated to remove bad download line')};
+                                }
+                            });
+                        }
+                    });
+
+                    //normally returns full path which may be undesirable to leak so path is reset
+                    //err.path = req.params.uuid;
+                    return res.status(500).send(err);
+                } else {
+                    if(debug) {
+                        console.log('file downloaded successfully');
+                        console.log('file download logged successfully');
+                    }
+                }
+            })
         }
     });
+    
+    
+    
     
 });
 
