@@ -50,27 +50,28 @@ if (method.toLowerCase() === 'post' || method.toLowerCase() === 'p') {
     }
     fpath = argv.fpath;
     postFile = fs.createReadStream(fpath);
-    console.log(`file path: ${fpath}`);
-    console.log(`file name: ${fpath.split('/').slice(-1)}`);
-    form.append(fpath.split('/').slice(-1), postFile);
+    form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
+//fpath.split('/').slice(-1)
 
-const req = http.request(options, res => {
-    console.log(`statusCode: ${res.statusCode}`)
+const req = http.request(options);
 
-    res.on('data', d => {
-    process.stdout.write(d)
-    })
-})
 
 req.on('error', error => {
     console.error(error)
-})
+});
+
+req.on('response', res => {
+    console.log(`statusCode: ${res.statusCode}`)
+
+    res.on('data', d => {
+        console.log(d.toString());
+    })
+});
 
 if (post) {
     form.pipe(req);
-    req.end()
 } else {
-    req.end()
+    req.end();
 }
