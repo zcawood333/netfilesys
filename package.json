@@ -4,7 +4,8 @@
   "description": "command line node client utilities",
   "main": "client.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "upload": "node client.js --method='post' --path=/upload --fpath=/home/zcawood/node_proj/test_files_to_upload/a.txt",
+    "download": "node client.js --path=/download/a9c6973e-15a5-404d-8070-c6fb7117f049"
   },
   "repository": {
     "type": "git",
