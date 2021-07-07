@@ -10,8 +10,6 @@ const http = require('http');
 const formData = require('form-data');
 const form = new formData();
 const fs = require('fs');
-const dgram = require('dgram');
-const server = dgram.createSocket("udp6");
 
 //Defaults
 let port = 5000;
