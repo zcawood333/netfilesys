@@ -7,8 +7,8 @@ const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const port = 5000;
 const uploadsDir = '/uploads/';
-const uploadLogPath = './upload_log.csv';
-const downloadLogPath = './download_log.csv';
+const uploadLogPath = './logs/upload_log.csv';
+const downloadLogPath = './logs/download_log.csv';
 
 //testing variables
 const debug = true;
@@ -62,36 +62,41 @@ app.post('/upload', (req, res) => {
     }
 
     fp = req.files.nameOfInputField;
-    if(useUUID) {
-        uuid = uuidv4();
-        path = `${__dirname}${uploadsDir}${uuid}`;
-        //store uuid along with filename using filename as keys in a sorted list
-        const today = new Date(Date.now());
-        fs.appendFile(uploadLogPath, `${fp.name},${uuid},${today.toISOString()}\n`, err => {
-            if (err) {
-                if (debug) {console.log('file unable to be uploaded', err)};
-                return res.status(500).send(err);
-            } else if(debug) {console.log('file upload logged successfully')};
-        });
-        //search for filename in log using binary search
-        //if filename (key) is a duplicate, search through uuids (values) and see if any of the files at those locations are equivalent to the given
-    } else {
-        path = `${__dirname}${uploadsDir}${fp.name}`;
-    }
+    const ogUUID = uuidv4();
+    if (debug) {console.log(`uuid: ${uuid}`)};
+    uuid = ogUUID.replace(/-/g,'');
+    if (debug) {console.log(`uuid without dashes: ${uuid}`)};
+    uuid = uuid.replace(/(.{3})/g,"$1/")
+    if (debug) {console.log(`uuid turned into path: ${uuid}`)};
+    path = `${__dirname}${uploadsDir}${uuid}`;
 
-
+    if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
     fp.mv(path, err => {
         if (err) {
-            if(debug) console.log('file unable to be uploaded', err);
+            if(debug) {console.log('file unable to be uploaded (1)', err)};
             return res.status(500).send(err);
-        }
-        if(debug) console.log(`File ${fp.name} uploaded to ${path}`);
-        if(useUUID) {
-            res.send(uuid);
         } else {
-            res.send('File uploaded!');
-        }
-    });
+            if(debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
+            const today = new Date(Date.now());
+            fs.appendFile(uploadLogPath, `${fp.name},${ogUUID},${today.toISOString()}\n`, err => {
+                if (err) {
+                    if (debug) {console.log('file unable to be uploaded (2)', err)};
+                    fs.rm(path, err => {
+                        if (err) {
+                            if (debug) {console.log(`File ${fp.name} unable to be removed at ${path}`)};
+                        } else {
+                            if (debug) {console.log(`File ${fp.name} removed from ${path}`)};
+                        }
+                    });
+                    return res.status(500).send(err);
+                } else {
+                    if(debug) {console.log('file upload logged successfully')};
+                    //not sure what to send here
+                    res.send(ogUUID);
+                };
+            });
+        };
+    });    
 });
 
 if(debug) console.log('Starting server...');
