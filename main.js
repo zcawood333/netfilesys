@@ -11,23 +11,22 @@ const uploadLogPath = './logs/upload_log.csv';
 const downloadLogPath = './logs/download_log.csv';
 
 //testing variables
-const debug = true;
-const useUUID = true;
+const debug = false;
 
 app.use(fileUpload());
 
 
 app.get('/exist', (req, res) => {
-    res.send('Hello world');
+    res.send('Hello world\n');
 });
 
 app.get('/download/:uuid', (req, res) => {
-    if(debug) {console.log('GET request: ', req.params)};
+    if (debug) {console.log('GET request: ', req.params)};
     let parsedUUIDPath = req.params.uuid;
     parsedUUIDPath = parsedUUIDPath.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     let path = `${__dirname}${uploadsDir}${parsedUUIDPath}`;
     
-    if(debug) {console.log(`path: ${path}`)};
+    if (debug) {console.log(`path: ${path}`)};
 
     const today = new Date(Date.now());
     fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
@@ -37,7 +36,7 @@ app.get('/download/:uuid', (req, res) => {
         } else {
             res.download(path, err => {
                 if (err) {
-                    if(debug) {console.log('file unable to be downloaded', err)};
+                    if (debug) {console.log('file unable to be downloaded', err)};
 
                     //remove last line from log file
                     fs.readFile(downloadLogPath, (err, data) => {
@@ -61,7 +60,7 @@ app.get('/download/:uuid', (req, res) => {
                     //err.path = req.params.uuid;
                     return res.status(500).send(err);
                 } else {
-                    if(debug) {
+                    if (debug) {
                         console.log('file downloaded successfully');
                         console.log('file download logged successfully');
                     }
@@ -76,8 +75,9 @@ app.get('/download/:uuid', (req, res) => {
 });
 
 app.post('/upload', (req, res) => {
-    if(debug) {
-        console.log('POST request: ', req.params);
+    if (debug) {
+        console.log('POST request headers: ', req.headers);
+        console.log('POST request body: ', req.body);
         console.log(`Files: ${req.files}`);
     }
     let fp;
@@ -86,13 +86,13 @@ app.post('/upload', (req, res) => {
 
     //pulled from example: https://github.com/richardgirges/express-fileupload/tree/master/example
     if (!req.files || Object.keys(req.files).length === 0) {
-        if(debug) {console.log('No files to upload')};
+        if (debug) {console.log('No files to upload')};
         return res.status(400).send('No files were uploaded.');
     }
 
-    fp = req.files.nameOfInputField;
+    fp = req.files.fileKey;
     const ogUUID = uuidv4();
-    if (debug) {console.log(`uuid: ${uuid}`)};
+    if (debug) {console.log(`uuid: ${ogUUID}`)};
     uuid = ogUUID.replace(/-/g,'');
     if (debug) {console.log(`uuid without dashes: ${uuid}`)};
     uuid = uuid.replace(/(.{3})/g,"$1/")
@@ -102,10 +102,10 @@ app.post('/upload', (req, res) => {
     if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
     fp.mv(path, err => {
         if (err) {
-            if(debug) {console.log('file unable to be uploaded (1)', err)};
+            if (debug) {console.log('file unable to be uploaded (1)', err)};
             return res.status(500).send(err);
         } else {
-            if(debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
+            if (debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
             const today = new Date(Date.now());
             fs.appendFile(uploadLogPath, `${fp.name},${ogUUID},${today.toISOString()}\n`, err => {
                 if (err) {
@@ -119,7 +119,7 @@ app.post('/upload', (req, res) => {
                     });
                     return res.status(500).send(err);
                 } else {
-                    if(debug) {console.log('file upload logged successfully')};
+                    if (debug) {console.log('file upload logged successfully')};
                     //not sure what to send here
                     res.send(ogUUID);
                 };
@@ -128,5 +128,5 @@ app.post('/upload', (req, res) => {
     });    
 });
 
-if(debug) console.log('Starting server...');
+if (debug) console.log('Starting server...');
 app.listen(port, '0.0.0.0');
