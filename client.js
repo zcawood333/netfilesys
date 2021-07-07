@@ -1,4 +1,10 @@
-
+//command line client utility; sends get or post requests
+//keyword args: --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=...
+//method: determines whether http request is GET or POST request
+//hostname: hostname to send the request to
+//port: port to send the request to
+//path: path to send the request to; ie. port=/download --> http://hostname:port/download
+//fpath: file path for post request
 const argv = require('minimist')(process.argv.slice(2));
 const http = require('http');
 const formData = require('form-data');
@@ -17,7 +23,8 @@ let postFile = null;
 let get = true;
 let post = false;
 
-const debug = true;
+//testing
+const debug = false;
 
 //argv handling and error checking
 if (debug) {console.log(argv)};
@@ -30,7 +37,7 @@ if (argv.path) {
 if (argv.port) {
     port = argv.port;
 }
-if (argv.method) {
+if (argv.method && (argv.method === 'p' || argv.method === 'post' || argv.method === 'get' || argv.method === 'g')) {
     method = argv.method;
 }
 
@@ -41,6 +48,7 @@ const options = {
     method: 'GET'
 }
 
+//make POST-specific changes
 if (method.toLowerCase() === 'post' || method.toLowerCase() === 'p') {
     post = true;
     get = false;
@@ -53,10 +61,8 @@ if (method.toLowerCase() === 'post' || method.toLowerCase() === 'p') {
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
-//fpath.split('/').slice(-1)
 
 const req = http.request(options);
-
 
 req.on('error', error => {
     console.error(error)
@@ -71,6 +77,7 @@ req.on('response', res => {
 });
 
 if (post) {
+    //request end is implicit after piping form
     form.pipe(req);
 } else {
     req.end();
