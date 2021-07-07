@@ -2,9 +2,9 @@
   "name": "node_proj",
   "version": "1.0.0",
   "description": "post/put/get files to and from servers",
-  "main": "main.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node server.js"
   },
   "repository": {
     "type": "git",
