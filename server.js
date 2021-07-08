@@ -72,10 +72,6 @@ app.get('/download/:uuid', (req, res) => {
             })
         }
     });
-    
-    
-    
-    
 });
 
 app.post('/upload', (req, res) => {
@@ -142,15 +138,14 @@ udpSocket.on('listening', function () {
     udpSocket.setBroadcast(true);
     udpSocket.setMulticastTTL(128); 
     udpSocket.addMembership(multicastAddr);
-    //used to send a multicast message
+    //used to send/test a multicast message
     //setInterval(broadcastNew, 5000); 
 });
 udpSocket.on('message', (message, remote) => {   
     if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
-    if (debug) {console.log(udpSocket.address().address,':',udpSocket.address.port)};
 });
-function broadcastNew() {
-    const message = new Buffer.from('this is the multicast string',);
+function broadcastNew(msg = 'this is the multicast string') {
+    const message = new Buffer.from(msg);
     udpSocket.send(message, 0, message.length, udpPort, multicastAddr);
     console.log("Sent " + message);
     //server.close();
