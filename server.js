@@ -1,17 +1,21 @@
-//main.js
+//server.js
 
 const express = require('express');
 const app = express();
+const dgram = require('dgram');
+const udpSocket = dgram.createSocket('udp4');
+const multicastAddr = '230.185.192.108';
+const udpPort = 5002; //reserved 5001 for testing applications sending multicast msgs
 const { v4: uuidv4 } = require('uuid');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
-const port = 5000;
+const tcpPort = 5000;
 const uploadsDir = '/uploads/';
 const uploadLogPath = './logs/upload_log.csv';
 const downloadLogPath = './logs/download_log.csv';
 
 //testing variables
-const debug = false;
+const debug = true;
 
 app.use(fileUpload());
 
@@ -129,4 +133,26 @@ app.post('/upload', (req, res) => {
 });
 
 if (debug) console.log('Starting server...');
-app.listen(port, '0.0.0.0');
+//start both tcp and udp server
+app.listen(tcpPort, '0.0.0.0');
+
+udpSocket.on('listening', function () {
+    const address = udpSocket.address();
+    if (debug) {console.log('UDP listening on ' + address.address + ":" + address.port)};
+    udpSocket.setBroadcast(true);
+    udpSocket.setMulticastTTL(128); 
+    udpSocket.addMembership(multicastAddr);
+    //used to send a multicast message
+    //setInterval(broadcastNew, 5000); 
+});
+udpSocket.on('message', (message, remote) => {   
+    if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+    if (debug) {console.log(udpSocket.address().address,':',udpSocket.address.port)};
+});
+function broadcastNew() {
+    const message = new Buffer.from('this is the multicast string',);
+    udpSocket.send(message, 0, message.length, udpPort, multicastAddr);
+    console.log("Sent " + message);
+    //server.close();
+}
+udpSocket.bind(udpPort);
