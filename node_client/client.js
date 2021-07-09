@@ -56,16 +56,14 @@ if (argv.multicast) {
     }
 } else {
     //argv handling and error checking
-    if (argv.hostname) {
-        hostname = argv.hostname;
-    }
-    if (argv.path) {
-        path = argv.path;
-    }
-    if (argv.port) {
-        port = argv.port;
-    }
-    if (argv.method && (argv.method === 'p' || argv.method === 'post' || argv.method === 'get' || argv.method === 'g')) {
+    if (argv.hostname) {hostname = argv.hostname};
+    if (argv.path) {path = argv.path};
+    if (argv.port) {port = argv.port};
+    if (argv.method && 
+        (argv.method === 'p' 
+        || argv.method === 'post' 
+        || argv.method === 'get' 
+        || argv.method === 'g')) {
         method = argv.method;
     }
 
@@ -77,7 +75,8 @@ if (argv.multicast) {
     }
 
     //make POST-specific changes
-    if (method.toLowerCase() === 'post' || method.toLowerCase() === 'p') {
+    if (method.toLowerCase() === 'post' 
+        || method.toLowerCase() === 'p') {
         post = true;
         get = false;
         options.method = 'POST';
