@@ -97,9 +97,9 @@ app.post('/upload', (req, res) => {
     fp = req.files.fileKey;
     const ogUUID = uuidv4();
     if (debug) {console.log(`uuid: ${ogUUID}`)};
-    uuid = ogUUID.replace(/-/g,'');
+    const noDashesUUID = ogUUID.replace(/-/g,'');
     if (debug) {console.log(`uuid without dashes: ${uuid}`)};
-    uuid = uuid.replace(/(.{3})/g,"$1/")
+    uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
     if (debug) {console.log(`uuid turned into path: ${uuid}`)};
     path = `${__dirname}${uploadsDir}${uuid}`;
 
@@ -125,7 +125,7 @@ app.post('/upload', (req, res) => {
                 } else {
                     if (debug) {console.log('file upload logged successfully')};
                     //not sure what to send here
-                    res.send(ogUUID);
+                    res.send(noDashesUUID);
                 };
             });
         };
