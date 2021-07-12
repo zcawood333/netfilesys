@@ -1,3 +1,5 @@
+#!/usr/local/bin/node
+
 //command line client utility; sends get or post requests
 //keyword args: --multicast='message', --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=...
 //multicast: will send a multicast message to default address
@@ -12,6 +14,7 @@ const formData = require('form-data');
 const form = new formData();
 const fs = require('fs');
 const dgram = require('dgram');
+const { exit } = require('process');
 
 
 
@@ -28,9 +31,23 @@ let post = false;
 let multicastMsg = null;
 
 //testing
-const debug = false;
+let debug = false;
+if (argv.debug)
+    debug = true;
+    
 
 if (debug) {console.log(argv)};
+
+if (argv.help || (process.argv.length <= 2)) { // if help or no args
+    console.log("Usage:\n" +
+    " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
+    "    command = GET | PUT | POST\n" +
+    "      GET <UUID>\n" +
+    "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
+    "      \n"
+    );
+    exit(0);
+}
 if (argv.multicast) {
     multicastMsg = argv.multicast;
     const server = dgram.createSocket('udp4');
