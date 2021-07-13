@@ -3,9 +3,11 @@
 const express = require('express');
 const app = express();
 const dgram = require('dgram');
-const udpSocket = dgram.createSocket('udp4');
-const multicastAddr = '230.185.192.108';
-const udpPort = 5002; //reserved 5001 for testing applications sending multicast msgs
+const multicastServer = dgram.createSocket('udp4');
+const multicastServerAddr = '230.185.192.109';
+const multicastClientAddr = '230.185.192.108';
+const multicastServerPort = 5002;
+const multicastClientPort = 5001;
 const { v4: uuidv4 } = require('uuid');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
@@ -61,7 +63,7 @@ app.get('/download/:uuid', (req, res) => {
                     });
 
                     //normally returns full path which may be undesirable to leak so path is reset
-                    //err.path = req.params.uuid;
+                    err.path = req.params.uuid;
                     return res.status(500).send(err);
                 } else {
                     if (debug) {
@@ -124,7 +126,6 @@ app.post('/upload', (req, res) => {
                     return res.status(500).send(err);
                 } else {
                     if (debug) {console.log('file upload logged successfully')};
-                    //not sure what to send here
                     res.send(noDashesUUID);
                 };
             });
@@ -132,27 +133,28 @@ app.post('/upload', (req, res) => {
     });    
 });
 
-if (debug) console.log('Starting server...');
+if (debug) console.log(`Starting http based server on localhost:${tcpPort}`);
 //start both tcp and udp server
 app.listen(tcpPort, '0.0.0.0');
+initMulticastServer();
 
-udpSocket.on('listening', function () {
-    const address = udpSocket.address();
-    if (debug) {console.log('UDP listening on ' + address.address + ":" + address.port)};
-    udpSocket.setBroadcast(true);
-    udpSocket.setMulticastTTL(128); 
-    udpSocket.addMembership(multicastAddr);
-    //used to send a multicast message
-    //setInterval(broadcastNew, 5000); 
-});
-udpSocket.on('message', (message, remote) => {   
-    if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
-    if (debug) {console.log(udpSocket.address().address,':',udpSocket.address.port)};
-});
-function broadcastNew() {
-    const message = new Buffer.from('this is the multicast string',);
-    udpSocket.send(message, 0, message.length, udpPort, multicastAddr);
-    console.log("Sent " + message);
-    //server.close();
+//FUNCTIONS
+function initMulticastServer() {
+    multicastServer.on('listening', function () {
+        if (debug) {
+            console.log(`multicastServer listening on multicast address ${multicastServerAddr}:${multicastServerPort}`)
+        }
+        multicastServer.setBroadcast(true);
+        multicastServer.setMulticastTTL(128); 
+        multicastServer.addMembership(multicastServerAddr);
+    });
+    multicastServer.on('message', (message, remote) => {   
+        if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+    });
+    multicastServer.bind(multicastServerPort);
 }
-udpSocket.bind(udpPort);
+function sendMulticastMsg(msg = 'this is a sample multicast message (from server)') {
+    const message = new Buffer.from(msg);
+    multicastServer.send(message, 0, message.length, multicastClientPort, multicastClientAddr);
+    if (debug) {console.log("Sent " + message)}
+}

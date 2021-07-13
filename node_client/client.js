@@ -14,10 +14,12 @@ const formData = require('form-data');
 const form = new formData();
 const fs = require('fs');
 const dgram = require('dgram');
+const multicastClient = dgram.createSocket('udp4');
+const multicastServerAddr = '230.185.192.109';
+const multicastClientAddr = '230.185.192.108';
+const multicastServerPort = 5002;
+const multicastClientPort = 5001;
 const { exit } = require('process');
-
-
-
 
 //Defaults
 let port = 5000;
@@ -35,8 +37,7 @@ let debug = false;
 if (argv.debug)
     debug = true;
     
-
-if (debug) {console.log(argv)};
+if (debug) {console.log(`argv: ${argv}`)};
 
 if (argv.help || (process.argv.length <= 2)) { // if help or no args
     console.log("Usage:\n" +
@@ -50,27 +51,8 @@ if (argv.help || (process.argv.length <= 2)) { // if help or no args
 }
 if (argv.multicast) {
     multicastMsg = argv.multicast;
-    const server = dgram.createSocket('udp4');
-    const udpHostPort = 5001;
-    const udpSendPort = 5002;
-    const multicastAddr = '230.185.192.108';
-
-    server.bind(udpHostPort, undefined, () => {
-        server.setBroadcast(true);
-        server.setMulticastTTL(128);
-        server.addMembership(multicastAddr); 
-        broadcastNew();
-    });
-    
-    function broadcastNew() {
-        const message = new Buffer.from(multicastMsg);
-        server.send(message, 0, message.length, udpSendPort, multicastAddr, err => {
-            if (err && debug) {console.log(err)};
-            server.close();
-        });
-        console.log("Sent " + message);
-        
-    }
+    initMulticastClient();
+    sendMulticastMsg(multicastMsg);
 } else {
     //argv handling and error checking
     if (argv.hostname) {hostname = argv.hostname};
@@ -126,4 +108,25 @@ if (argv.multicast) {
     } else {
         req.end();
     }
+}
+
+//FUNCTIONS
+function initMulticastClient() {
+    multicastClient.on('listening', function () {
+        if (debug) {
+            console.log(`multicastClient listening on multicast address ${multicastClientAddr}:${multicastClientPort}`);
+        }
+        multicastClient.setBroadcast(true);
+        multicastClient.setMulticastTTL(128); 
+        multicastClient.addMembership(multicastClientAddr);
+    });
+    multicastClient.on('message', (message, remote) => {   
+        if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+    });
+    multicastClient.bind(multicastClientPort);
+}
+function sendMulticastMsg(msg = 'this is a sample multicast message (from server)') {
+    const message = new Buffer.from(msg);
+    multicastClient.send(message, 0, message.length, multicastServerPort, multicastServerAddr);
+    if (debug) {console.log("Sent " + message)}
 }
