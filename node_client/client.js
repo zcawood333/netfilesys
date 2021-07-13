@@ -32,6 +32,8 @@ let get = true;
 let post = false;
 let multicastMsg = null;
 
+
+
 //testing
 let debug = false;
 if (argv.debug)
@@ -39,7 +41,7 @@ if (argv.debug)
     
 if (debug) {console.log(`argv: ${argv}`)};
 
-if (argv.help || (process.argv.length <= 2)) { // if help or no args
+if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
     console.log("Usage:\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
@@ -49,64 +51,36 @@ if (argv.help || (process.argv.length <= 2)) { // if help or no args
     );
     exit(0);
 }
-if (argv.multicast) {
-    multicastMsg = argv.multicast;
-    initMulticastClient();
-    sendMulticastMsg(multicastMsg);
+
+if (argv._) {
+    //command based
 } else {
-    //argv handling and error checking
-    if (argv.hostname) {hostname = argv.hostname};
-    if (argv.path) {path = argv.path};
-    if (argv.port) {port = argv.port};
-    if (argv.method && 
-        (argv.method === 'p' 
-        || argv.method === 'post' 
-        || argv.method === 'get' 
-        || argv.method === 'g')) {
-        method = argv.method;
-    }
-
-    const options = {
-        hostname: hostname,
-        port: port,
-        path: path,
-        method: 'GET'
-    }
-
-    //make POST-specific changes
-    if (method.toLowerCase() === 'post' 
-        || method.toLowerCase() === 'p') {
-        post = true;
-        get = false;
-        options.method = 'POST';
-        if (!(argv.fpath)) {
-            throw new Error('this post request requires a file path');
-        }
-        fpath = argv.fpath;
-        postFile = fs.createReadStream(fpath);
-        form.append('fileKey', postFile);
-        options.headers = form.getHeaders();
-    }
-
-    const req = http.request(options);
-
-    req.on('error', error => {
-        console.error(error)
-    });
-
-    req.on('response', res => {
-        console.log(`statusCode: ${res.statusCode}`)
-
-        res.on('data', d => {
-            console.log(d.toString());
-        })
-    });
-
-    if (post) {
-        //request end is implicit after piping form
-        form.pipe(req);
+    //flag based, old implementation
+    if (argv.multicast) {
+        //send a multicast message and close the connection
+        multicastMsg = argv.multicast;
+        initMulticastClient();
+        sendMulticastMsg(multicastMsg, true);
     } else {
-        req.end();
+        //send a http request
+        const options = {
+            hostname: hostname,
+            port: port,
+            path: path,
+            method: 'GET'
+        }
+        const req = http.request(options);
+        //argv handling and error checking
+        argsHandler();
+
+        //make POST-specific changes
+        if (method === 'POST') {
+            changeMethodToPost(options);
+        }
+
+        initRequest(req);
+
+        sendRequest(req);
     }
 }
 
@@ -125,8 +99,65 @@ function initMulticastClient() {
     });
     multicastClient.bind(multicastClientPort);
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from server)') {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false) {
     const message = new Buffer.from(msg);
-    multicastClient.send(message, 0, message.length, multicastServerPort, multicastServerAddr);
+    multicastClient.send(message, 0, message.length, multicastServerPort, multicastServerAddr, () => {
+        if (close) {
+            multicastClient.close();
+            if (debug) {console.log('multicast client closed')}
+        }
+    });
     if (debug) {console.log("Sent " + message)}
+}
+function argsHandler() {
+    if (argv.hostname) {hostname = argv.hostname};
+    if (argv.path) {path = argv.path};
+    if (argv.port) {port = argv.port};
+    if (argv.method) { 
+        switch (argv.method.toLowerCase()) {
+            case 'p':
+            case 'post':
+                method = 'POST';
+                break;
+            case 'g':
+            case 'get':
+                method = 'GET';
+                break;
+            default:
+                throw new Error(`Unknown method: ${argv.method}`);
+        }
+    }
+}
+function changeMethodToPost(options) {
+    post = true;
+    get = false;
+    options.method = 'POST';
+    if (!(argv.fpath)) {
+        throw new Error('this post request requires a file path');
+    }
+    fpath = argv.fpath;
+    postFile = fs.createReadStream(fpath);
+    form.append('fileKey', postFile);
+    options.headers = form.getHeaders();
+}
+function initRequest(req) {
+    req.on('error', error => {
+        console.error(error)
+    });
+
+    req.on('response', res => {
+        console.log(`statusCode: ${res.statusCode}`)
+
+        res.on('data', d => {
+            console.log(d.toString());
+        })
+    });
+}
+function sendRequest(req) {
+    if (post) {
+        //request end is implicit after piping form
+        form.pipe(req);
+    } else {
+        req.end();
+    }
 }
