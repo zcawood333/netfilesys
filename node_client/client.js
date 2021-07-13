@@ -42,7 +42,7 @@ if (argv.debug)
 if (debug) {console.log(`argv: ${argv}`)};
 
 if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
-    console.log("Usage:\n" +
+    console.log("Usage: <command> <param>\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
     "      GET <UUID>\n" +
@@ -52,8 +52,21 @@ if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help
     exit(0);
 }
 
-if (argv._) {
+if (argv._.length > 0) {
     //command based
+    switch (argv._[0]) {
+        case 'GET':
+            GET();
+            break;
+        case 'POST':
+            POST();
+            break;
+        case 'PUT':
+            PUT();
+            break;
+        default:
+            throw new Error(`Unrecognized command: ${argv._[0]}`)
+    }
 } else {
     //flag based, old implementation
     if (argv.multicast) {
@@ -85,6 +98,9 @@ if (argv._) {
 }
 
 //FUNCTIONS
+function GET() {}
+function POST() {}
+function PUT() {}
 function initMulticastClient() {
     multicastClient.on('listening', function () {
         if (debug) {
@@ -146,10 +162,11 @@ function initRequest(req) {
     });
 
     req.on('response', res => {
-        console.log(`statusCode: ${res.statusCode}`)
+        if (debug) {console.log(`statusCode: ${res.statusCode}`)}
 
         res.on('data', d => {
-            console.log(d.toString());
+            if (debug) {console.log(d.toString())}
+        })
         })
     });
 }
