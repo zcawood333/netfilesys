@@ -43,13 +43,7 @@ if (argv.debug) {
 if (debug) {console.log('argv: ', argv)};
 
 if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
-    console.log("Usage: <command> <param>\n" +
-    " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
-    "    command = GET | PUT | POST\n" +
-    "      GET <UUID>\n" +
-    "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
-    "      \n"
-    );
+    printHelp();
     exit(0);
 }
 
@@ -103,7 +97,25 @@ if (argv._.length > 0) {
 }
 
 //FUNCTIONS
-function GET() {}
+function GET() {
+    if (argv._.length !== 2) {
+        throw new Error('Usage: GET <filekey>');
+    }
+    if (validUUID(argv._[1])) {
+        initMulticastClient();
+        sendMulticastMsg(argv._[1]);
+    }
+}
+function validUUID(val) {
+    let newVal = val.replace(/-/g,'');
+    if (newVal.length !== 32) {throw new Error('Invalid UUID')}
+    for (let i = 0; i < newVal.length; i++) {
+        let char = newVal.charAt(i);
+        if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {continue}
+        throw new Error('Invalid UUID');
+    }
+    return true;
+}
 function POST() {}
 function PUT() {}
 function initMulticastClient() {
@@ -181,4 +193,13 @@ function sendRequest(req) {
     } else {
         req.end();
     }
+}
+function printHelp() {
+    console.log("Usage: <command> <param>\n" +
+    " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
+    "    command = GET | PUT | POST\n" +
+    "      GET <UUID>\n" +
+    "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
+    "      \n"
+    );
 }
