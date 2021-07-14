@@ -1,0 +1,57 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Launch Server",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/server.js"
+        },
+        {
+            "name": "Client GET",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "eea70be55a704722ae543d23125e0a53", "--debug"]
+        },
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Client Upload",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/node_client/client.js",
+            "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/a.txt"]
+        },
+        {
+            "name": "Client Download",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["--debug", "--path=/download/eea70be55a704722ae543d23125e0a53"]
+        },
+        {
+            "name": "Client Multicast",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["--debug", "--multicast='this is a multicast message from the client'"]
+        },        
+    ]
+}

@@ -1,3 +1,5 @@
+#!/usr/local/bin/node
+
 //command line client utility; sends get or post requests
 //keyword args: --multicast='message', --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=...
 //multicast: will send a multicast message to default address
@@ -12,13 +14,15 @@ const formData = require('form-data');
 const form = new formData();
 const fs = require('fs');
 const dgram = require('dgram');
-
-
-
+const multicastClient = dgram.createSocket('udp4');
+const multicastAddr = '230.185.192.108';
+const multicastServerPort = 5002;
+const multicastClientPort = 5001;
+const { exit } = require('process');
 
 //Defaults
-let port = 5000;
-let hostname = 'localhost'
+let tcpServerPort = 5000;
+let tcpServerHostname = 'localhost'
 let path = '';
 let method = 'GET';
 let fpath = null;
@@ -26,87 +30,200 @@ let postFile = null;
 let get = true;
 let post = false;
 let multicastMsg = null;
+let uuid = null;
+
+
 
 //testing
-const debug = false;
+let debug = false;
+if (argv.debug) {
+    debug = true;
+    console.log('DEBUG OUTPUT ON');
+}
 
-if (debug) {console.log(argv)};
-if (argv.multicast) {
-    multicastMsg = argv.multicast;
-    const server = dgram.createSocket('udp4');
-    const udpHostPort = 5001;
-    const udpSendPort = 5002;
-    const multicastAddr = '230.185.192.108';
+//MAIN CODE
+if (debug) {console.log('argv: ', argv)};
 
-    server.bind(udpHostPort, undefined, () => {
-        server.setBroadcast(true);
-        server.setMulticastTTL(128);
-        server.addMembership(multicastAddr); 
-        broadcastNew();
-    });
-    
-    function broadcastNew() {
-        const message = new Buffer.from(multicastMsg);
-        server.send(message, 0, message.length, udpSendPort, multicastAddr, err => {
-            if (err && debug) {console.log(err)};
-            server.close();
-        });
-        console.log("Sent " + message);
-        
+if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
+    printHelp();
+    exit(0);
+}
+
+if (argv._.length > 0) {
+    //command based
+    switch (argv._[0].toLowerCase()) {
+        case 'get':
+            GET();
+            break;
+        case 'post':
+            POST();
+            break;
+        case 'put':
+            PUT();
+            break;
+        default:
+            throw new Error(`Unrecognized command: ${argv._[0]}`)
     }
 } else {
-    //argv handling and error checking
-    if (argv.hostname) {hostname = argv.hostname};
-    if (argv.path) {path = argv.path};
-    if (argv.port) {port = argv.port};
-    if (argv.method && 
-        (argv.method === 'p' 
-        || argv.method === 'post' 
-        || argv.method === 'get' 
-        || argv.method === 'g')) {
-        method = argv.method;
-    }
+    //flag based, old implementation
+    if (argv.multicast) {
+        //send a multicast message and close the connection
+        multicastMsg = argv.multicast;
+        initMulticastClient();
+        sendMulticastMsg(multicastMsg, true);
+    } else {
+        //send a http request
+        //argv handling and error checking
+        argsHandler();
 
+        //create http request
+        const options = {
+            hostname: tcpServerHostname,
+            port: tcpServerPort,
+            path: path,
+            method: 'GET'
+        }        
+        //make POST-specific changes
+        if (method === 'POST') {
+            changeMethodToPost(options);
+        }
+
+        const req = http.request(options);
+
+        //init req event listeners
+        initRequest(req);
+
+        //send request
+        sendRequest(req);
+    }
+}
+
+//FUNCTIONS
+async function GET() {
+    if (argv._.length !== 2) {
+        throw new Error('Usage: GET <filekey>');
+    }
+    if (validUUID(argv._[1])) {
+        uuid = argv._[1];
+        await initMulticastClient();
+        sendMulticastMsg('g' + uuid);
+    }
+}
+function validUUID(val) {
+    let newVal = val.replace(/-/g,'');
+    if (newVal.length !== 32) {throw new Error('Invalid UUID')}
+    for (let i = 0; i < newVal.length; i++) {
+        let char = newVal.charAt(i);
+        if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {continue}
+        throw new Error('Invalid UUID');
+    }
+    return true;
+}
+function POST() {}
+function PUT() {}
+function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
     const options = {
         hostname: hostname,
         port: port,
-        path: path,
+        path: '/download/' + fileUUID,
         method: 'GET'
     }
-
-    //make POST-specific changes
-    if (method.toLowerCase() === 'post' 
-        || method.toLowerCase() === 'p') {
-        post = true;
-        get = false;
-        options.method = 'POST';
-        if (!(argv.fpath)) {
-            throw new Error('this post request requires a file path');
-        }
-        fpath = argv.fpath;
-        postFile = fs.createReadStream(fpath);
-        form.append('fileKey', postFile);
-        options.headers = form.getHeaders();
-    }
-
     const req = http.request(options);
-
+    initRequest(req);
+    sendRequest(req);
+}
+async function initMulticastClient() {
+    multicastClient.on('listening', function () {
+        if (debug) {
+            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
+        }
+        multicastClient.setBroadcast(true);
+        multicastClient.setMulticastTTL(128); 
+        multicastClient.addMembership(multicastAddr);
+    });
+    multicastClient.on('message', (message, remote) => {   
+        if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+        message = message.toString();
+        switch (message.toString().charAt(0)) {
+            case 'h':
+                multicastClient.close();
+                httpGet(remote.address, tcpServerPort, uuid);
+                break;
+            default:
+                break;
+        }
+    });
+    if (debug) console.log(`Starting multicastClient on port ${multicastServerPort}`);
+    multicastClient.bind(multicastClientPort);
+}
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastAddr) {
+    const message = new Buffer.from(msg);
+    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
+        if (close) {
+            multicastClient.close();
+            if (debug) {console.log('multicastClient closed')}
+        }
+    });
+    if (debug) {console.log("Sent " + message)}
+}
+function argsHandler() {
+    if (argv.hostname) {tcpServerHostname = argv.hostname};
+    if (argv.path) {path = argv.path};
+    if (argv.port) {tcpServerPort = argv.port};
+    if (argv.method) { 
+        switch (argv.method.toLowerCase()) {
+            case 'p':
+            case 'post':
+                method = 'POST';
+                break;
+            case 'g':
+            case 'get':
+                method = 'GET';
+                break;
+            default:
+                throw new Error(`Unknown method: ${argv.method}`);
+        }
+    }
+}
+function changeMethodToPost(options) {
+    post = true;
+    get = false;
+    options.method = 'POST';
+    if (!(argv.fpath)) {
+        throw new Error('this post request requires a file path');
+    }
+    fpath = argv.fpath;
+    postFile = fs.createReadStream(fpath);
+    form.append('fileKey', postFile);
+    options.headers = form.getHeaders();
+}
+function initRequest(req) {
     req.on('error', error => {
         console.error(error)
     });
 
     req.on('response', res => {
-        console.log(`statusCode: ${res.statusCode}`)
+        if (debug) {console.log(`statusCode: ${res.statusCode}`)}
 
         res.on('data', d => {
-            console.log(d.toString());
+            if (debug) {console.log(d.toString())}
         })
-    });
-
+    })
+}
+function sendRequest(req) {
     if (post) {
         //request end is implicit after piping form
         form.pipe(req);
     } else {
         req.end();
     }
+}
+function printHelp() {
+    console.log("Usage: <command> <param>\n" +
+    " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
+    "    command = GET | PUT | POST\n" +
+    "      GET <UUID>\n" +
+    "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
+    "      \n"
+    );
 }
