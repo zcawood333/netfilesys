@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Client Download",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["--debug", "--path=/download/eea70be55a704722ae543d23125e0a53"]
+        },
+        {
             "name": "Client GET",
             "program": "${workspaceFolder}/node_client/client.js",
             "request": "launch",
@@ -12,7 +22,7 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["--debug", "GET", "someUUID"]
+            "args": ["--debug", "GET", "eea70be55a704722ae543d23125e0a53"]
         },
         {
             "name": "Client Multicast",
