@@ -11,6 +11,7 @@ const multicastClientPort = 5001;
 const { v4: uuidv4 } = require('uuid');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
+const tcpAddr = '0.0.0.0';
 const tcpPort = 5000;
 const uploadsDir = '/uploads/';
 const uploadLogPath = './logs/upload_log.csv';
@@ -133,16 +134,17 @@ app.post('/upload', (req, res) => {
     });    
 });
 
-if (debug) console.log(`Starting http based server on localhost:${tcpPort}`);
 //start both tcp and udp server
-app.listen(tcpPort, '0.0.0.0');
+if (debug) console.log(`Starting http based server on ${tcpAddr}:${tcpPort}`);
+app.listen(tcpPort, tcpAddr);
+if (debug) console.log(`Starting multicastServer on port ${multicastServerPort}`);
 initMulticastServer();
 
 //FUNCTIONS
 function initMulticastServer() {
     multicastServer.on('listening', function () {
         if (debug) {
-            console.log(`multicastServer listening on multicast address ${multicastServerAddr}:${multicastServerPort}`)
+            console.log(`multicastServer listening on multicast address ${multicastServerAddr}`)
         }
         multicastServer.setBroadcast(true);
         multicastServer.setMulticastTTL(128); 
@@ -150,11 +152,21 @@ function initMulticastServer() {
     });
     multicastServer.on('message', (message, remote) => {   
         if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+        let uuid = message.toString();
+        let path = 'uploads/' + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+        if (fs.existsSync(path)) {
+            sendMulticastMsg(uuid, false, undefined, remote.address);
+        }
     });
     multicastServer.bind(multicastServerPort);
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from server)') {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from server)', close = false, targetPort = multicastClientPort, targetAddr = multicastClientAddr) {
     const message = new Buffer.from(msg);
-    multicastServer.send(message, 0, message.length, multicastClientPort, multicastClientAddr);
+    multicastServer.send(message, 0, message.length, targetPort, targetAddr, () => {
+        if (close) {
+            multicastServer.close();
+            if (debug) {console.log('multicastServer closed')}
+        }
+    });
     if (debug) {console.log("Sent " + message)}
 }

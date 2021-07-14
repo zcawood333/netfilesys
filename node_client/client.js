@@ -19,11 +19,11 @@ const multicastServerAddr = '230.185.192.109';
 const multicastClientAddr = '230.185.192.108';
 const multicastServerPort = 5002;
 const multicastClientPort = 5001;
-const { exit } = require('process');
+const { exit, send } = require('process');
 
 //Defaults
-let port = 5000;
-let hostname = 'localhost'
+let tcpServerPort = 5000;
+let tcpServerHostname = 'localhost'
 let path = '';
 let method = 'GET';
 let fpath = null;
@@ -31,6 +31,7 @@ let postFile = null;
 let get = true;
 let post = false;
 let multicastMsg = null;
+let uuid = null;
 
 
 
@@ -49,14 +50,14 @@ if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help
 
 if (argv._.length > 0) {
     //command based
-    switch (argv._[0]) {
-        case 'GET':
+    switch (argv._[0].toLowerCase()) {
+        case 'get':
             GET();
             break;
-        case 'POST':
+        case 'post':
             POST();
             break;
-        case 'PUT':
+        case 'put':
             PUT();
             break;
         default:
@@ -76,8 +77,8 @@ if (argv._.length > 0) {
 
         //create http request
         const options = {
-            hostname: hostname,
-            port: port,
+            hostname: tcpServerHostname,
+            port: tcpServerPort,
             path: path,
             method: 'GET'
         }        
@@ -97,13 +98,14 @@ if (argv._.length > 0) {
 }
 
 //FUNCTIONS
-function GET() {
+async function GET() {
     if (argv._.length !== 2) {
         throw new Error('Usage: GET <filekey>');
     }
     if (validUUID(argv._[1])) {
-        initMulticastClient();
-        sendMulticastMsg(argv._[1]);
+        uuid = argv._[1];
+        await initMulticastClient();
+        sendMulticastMsg(uuid);
     }
 }
 function validUUID(val) {
@@ -118,10 +120,21 @@ function validUUID(val) {
 }
 function POST() {}
 function PUT() {}
-function initMulticastClient() {
+function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
+    const options = {
+        hostname: hostname,
+        port: port,
+        path: '/download/' + fileUUID,
+        method: 'GET'
+    }
+    const req = http.request(options);
+    initRequest(req);
+    sendRequest(req);
+}
+async function initMulticastClient() {
     multicastClient.on('listening', function () {
         if (debug) {
-            console.log(`multicastClient listening on multicast address ${multicastClientAddr}:${multicastClientPort}`);
+            console.log(`multicastClient listening on multicast address ${multicastClientAddr}`);
         }
         multicastClient.setBroadcast(true);
         multicastClient.setMulticastTTL(128); 
@@ -129,23 +142,32 @@ function initMulticastClient() {
     });
     multicastClient.on('message', (message, remote) => {   
         if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+        message = message.toString();
+        if (message === `${uuid}`) {
+            //server responds directly to client, server has the file
+            //close multicastClient
+            multicastClient.close();
+            //use remote address at the tcpServerPort
+            httpGet(remote.address, tcpServerPort, uuid);
+        }
     });
+    if (debug) console.log(`Starting multicastClient on port ${multicastServerPort}`);
     multicastClient.bind(multicastClientPort);
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false) {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastServerAddr) {
     const message = new Buffer.from(msg);
-    multicastClient.send(message, 0, message.length, multicastServerPort, multicastServerAddr, () => {
+    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
             multicastClient.close();
-            if (debug) {console.log('multicast client closed')}
+            if (debug) {console.log('multicastClient closed')}
         }
     });
     if (debug) {console.log("Sent " + message)}
 }
 function argsHandler() {
-    if (argv.hostname) {hostname = argv.hostname};
+    if (argv.hostname) {tcpServerHostname = argv.hostname};
     if (argv.path) {path = argv.path};
-    if (argv.port) {port = argv.port};
+    if (argv.port) {tcpServerPort = argv.port};
     if (argv.method) { 
         switch (argv.method.toLowerCase()) {
             case 'p':
