@@ -4,8 +4,7 @@ const express = require('express');
 const app = express();
 const dgram = require('dgram');
 const multicastServer = dgram.createSocket('udp4');
-const multicastServerAddr = '230.185.192.109';
-const multicastClientAddr = '230.185.192.108';
+const multicastAddr = '230.185.192.108';
 const multicastServerPort = 5002;
 const multicastClientPort = 5001;
 const { v4: uuidv4 } = require('uuid');
@@ -20,8 +19,8 @@ const downloadLogPath = './logs/download_log.csv';
 //testing variables
 const debug = true;
 
+//MAIN CODE
 app.use(fileUpload());
-
 
 app.get('/exist', (req, res) => {
     res.send('Hello world\n');
@@ -144,23 +143,25 @@ initMulticastServer();
 function initMulticastServer() {
     multicastServer.on('listening', function () {
         if (debug) {
-            console.log(`multicastServer listening on multicast address ${multicastServerAddr}`)
+            console.log(`multicastServer listening on multicast address ${multicastAddr}`)
         }
         multicastServer.setBroadcast(true);
         multicastServer.setMulticastTTL(128); 
-        multicastServer.addMembership(multicastServerAddr);
+        multicastServer.addMembership(multicastAddr);
     });
     multicastServer.on('message', (message, remote) => {   
         if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
-        let uuid = message.toString();
-        let path = 'uploads/' + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
-        if (fs.existsSync(path)) {
-            sendMulticastMsg(uuid, false, undefined, remote.address);
+        switch (message.toString().charAt(0)) {
+            case 'g':
+                multicastGet(message, remote);
+                break;
+            default:
+                break;
         }
     });
     multicastServer.bind(multicastServerPort);
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from server)', close = false, targetPort = multicastClientPort, targetAddr = multicastClientAddr) {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from server)', close = false, targetPort = multicastClientPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastServer.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
@@ -169,4 +170,12 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from server
         }
     });
     if (debug) {console.log("Sent " + message)}
+}
+function multicastGet(message, remote) {
+    let uuid = message.toString().slice(1);
+    if (debug) {console.log(`parsed uuid: ${uuid}`)}
+    let path = 'uploads/' + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    if (fs.existsSync(path)) {
+        sendMulticastMsg('h' + uuid, false, undefined, remote.address);
+    }
 }

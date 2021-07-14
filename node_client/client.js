@@ -15,11 +15,10 @@ const form = new formData();
 const fs = require('fs');
 const dgram = require('dgram');
 const multicastClient = dgram.createSocket('udp4');
-const multicastServerAddr = '230.185.192.109';
-const multicastClientAddr = '230.185.192.108';
+const multicastAddr = '230.185.192.108';
 const multicastServerPort = 5002;
 const multicastClientPort = 5001;
-const { exit, send } = require('process');
+const { exit } = require('process');
 
 //Defaults
 let tcpServerPort = 5000;
@@ -41,6 +40,8 @@ if (argv.debug) {
     debug = true;
     console.log('DEBUG OUTPUT ON');
 }
+
+//MAIN CODE
 if (debug) {console.log('argv: ', argv)};
 
 if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
@@ -105,7 +106,7 @@ async function GET() {
     if (validUUID(argv._[1])) {
         uuid = argv._[1];
         await initMulticastClient();
-        sendMulticastMsg(uuid);
+        sendMulticastMsg('g' + uuid);
     }
 }
 function validUUID(val) {
@@ -134,27 +135,28 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
 async function initMulticastClient() {
     multicastClient.on('listening', function () {
         if (debug) {
-            console.log(`multicastClient listening on multicast address ${multicastClientAddr}`);
+            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
         }
         multicastClient.setBroadcast(true);
         multicastClient.setMulticastTTL(128); 
-        multicastClient.addMembership(multicastClientAddr);
+        multicastClient.addMembership(multicastAddr);
     });
     multicastClient.on('message', (message, remote) => {   
         if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
         message = message.toString();
-        if (message === `${uuid}`) {
-            //server responds directly to client, server has the file
-            //close multicastClient
-            multicastClient.close();
-            //use remote address at the tcpServerPort
-            httpGet(remote.address, tcpServerPort, uuid);
+        switch (message.toString().charAt(0)) {
+            case 'h':
+                multicastClient.close();
+                httpGet(remote.address, tcpServerPort, uuid);
+                break;
+            default:
+                break;
         }
     });
     if (debug) console.log(`Starting multicastClient on port ${multicastServerPort}`);
     multicastClient.bind(multicastClientPort);
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastServerAddr) {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
