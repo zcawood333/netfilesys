@@ -36,10 +36,11 @@ let multicastMsg = null;
 
 //testing
 let debug = false;
-if (argv.debug)
+if (argv.debug) {
     debug = true;
-    
-if (debug) {console.log(`argv: ${argv}`)};
+    console.log('DEBUG OUTPUT ON');
+}
+if (debug) {console.log('argv: ', argv)};
 
 if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
     console.log("Usage: <command> <param>\n" +
@@ -76,23 +77,27 @@ if (argv._.length > 0) {
         sendMulticastMsg(multicastMsg, true);
     } else {
         //send a http request
+        //argv handling and error checking
+        argsHandler();
+
+        //create http request
         const options = {
             hostname: hostname,
             port: port,
             path: path,
             method: 'GET'
-        }
-        const req = http.request(options);
-        //argv handling and error checking
-        argsHandler();
-
+        }        
         //make POST-specific changes
         if (method === 'POST') {
             changeMethodToPost(options);
         }
 
+        const req = http.request(options);
+
+        //init req event listeners
         initRequest(req);
 
+        //send request
         sendRequest(req);
     }
 }
@@ -167,8 +172,7 @@ function initRequest(req) {
         res.on('data', d => {
             if (debug) {console.log(d.toString())}
         })
-        })
-    });
+    })
 }
 function sendRequest(req) {
     if (post) {
