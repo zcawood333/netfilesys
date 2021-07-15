@@ -19,9 +19,9 @@ const multicastAddr = '230.185.192.108';
 const multicastServerPort = 5002;
 const multicastClientPort = 5001;
 const { exit } = require('process');
-const { resolve } = require('path');
 const numGetAttempts = 8; // number of attempts to GET a file
 const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
+const getDownloadPath = '/downloads/';
 
 //Defaults
 let tcpServerPort = 5000;
@@ -156,7 +156,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
         method: 'GET'
     }
     const req = http.request(options);
-    initRequest(req);
+    initRequest(req, fileUUID);
     sendRequest(req);
 }
 function PUT() {}
@@ -234,18 +234,24 @@ function changeMethodToPost(options) {
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
-function initRequest(req) {
+function initRequest(req, uuid = '') {
     req.on('error', error => {
         console.error(error)
     });
 
     req.on('response', res => {
         if (debug) {console.log(`statusCode: ${res.statusCode}`)}
-
+        if (uuid != '') {
+            //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
+            let path = `${__dirname}${getDownloadPath}${uuid}`;
+            if (debug) {console.log(`path: ${path}`)}
+            if (!fs.existsSync(path.slice(0,-32))) {fs.mkdirSync(path.slice(0,-32), {recursive: true})};
+            res.pipe(fs.createWriteStream(path));
+        }
         res.on('data', d => {
             if (debug) {console.log(d.toString())}
-        })
-    })
+        });
+    });
 }
 function sendRequest(req) {
     if (post) {
