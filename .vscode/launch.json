@@ -24,6 +24,27 @@
             "args": ["GET", "eea70be55a704722ae543d23125e0a53", "--debug"]
         },
         {
+            "name": "Client PUT",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
+        },
+        {
+            "name": "Client POST",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
+        },
+        
+        {
             "type": "pwa-node",
             "request": "launch",
             "name": "Client Upload",
