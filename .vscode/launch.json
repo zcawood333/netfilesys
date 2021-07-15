@@ -43,7 +43,16 @@
             "type": "pwa-node",
             "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
         },
-        
+        {
+            "name": "Client GET (file doesn't exist)",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "0123456789abcdeffedcba9876543210", "--debug"]
+        },
         {
             "type": "pwa-node",
             "request": "launch",
