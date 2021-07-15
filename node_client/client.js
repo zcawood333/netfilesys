@@ -19,6 +19,7 @@ const multicastAddr = '230.185.192.108';
 const multicastServerPort = 5002;
 const multicastClientPort = 5001;
 const { exit } = require('process');
+const { resolve } = require('path');
 const numGetAttempts = 8; // number of attempts to GET a file
 const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
 
@@ -32,7 +33,6 @@ let postFile = null;
 let get = true;
 let post = false;
 let multicastMsg = null;
-let uuid = null;
 let getIntervals = {};
 
 
@@ -103,28 +103,40 @@ if (argv._.length > 0) {
 
 //FUNCTIONS
 async function GET() {
-    if (argv._.length !== 2) {
-        throw new Error('Usage: GET <filekey>');
+    if (argv._.length < 2) {
+        throw new Error('Usage: GET <filekey> <filekey2> ...');
     }
-    if (validUUID(argv._[1])) {
-        uuid = argv._[1].replace(/-/g,'');
-        await initMulticastClient();
-        getIntervals[uuid] = {
-            interval: setInterval(() => {
-                if (debug) {console.log(`interval activated for uuid: ${uuid}`);}
-                if (getIntervals[uuid]['attempts'] < numGetAttempts) {
-                    sendMulticastMsg('g' + uuid);
-                    getIntervals[uuid]['attempts']++;
-                } else {
-                    if (debug) {console.log(`now deleting interval for uuid: ${uuid}`);}
-                    clearInterval(getIntervals[uuid]['interval']);
-                    delete getIntervals[uuid];
-                }
-                 
-            }, getAttemptTimeout),
-            attempts: 0,
+    await initMulticastClient();
+    let args = argv._.slice(1);
+    await getIterThroughArgs(args);
+    let closeClient = setInterval(() => {
+        if (Object.keys(getIntervals).length === 0) {
+            multicastClient.close();
+            clearInterval(closeClient);
         }
-    }
+    }, getAttemptTimeout);
+}
+async function getIterThroughArgs(args) {
+    args.forEach(arg => {
+        if (debug) {console.log(`current uuid: ${arg}`);}
+        if (validUUID(arg)) {
+            let uuid = arg.replace(/-/g,'');
+            getIntervals[uuid] = {
+                interval: setInterval(() => {
+                    if (debug) {console.log(`interval activated for uuid: ${uuid}`);}
+                    if (getIntervals[uuid]['attempts'] < numGetAttempts) {
+                        sendMulticastMsg('g' + uuid);
+                        getIntervals[uuid]['attempts']++;
+                    } else {
+                        if (debug) {console.log(`now deleting interval for uuid: ${uuid}`);}
+                        clearInterval(getIntervals[uuid]['interval']);
+                        delete getIntervals[uuid];
+                    }
+                }, getAttemptTimeout),
+                attempts: 0,
+            }
+        }
+    });
 }
 function validUUID(val) {
     let newVal = val.replace(/-/g,'');
@@ -170,8 +182,6 @@ async function initMulticastClient() {
                     //clear uuid interval
                     clearInterval(getIntervals[uuid]['interval']);
                     delete getIntervals[uuid];
-                    //close connection - probably change in the future to allow multiple file requests
-                    multicastClient.close();
                     //get file from server claiming to have it
                     httpGet(remote.address, tcpServerPort, uuid);
                 }
@@ -250,7 +260,7 @@ function printHelp() {
     console.log("Usage: <command> <param>\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
-    "      GET <UUID>\n" +
+    "      GET <filekey> ...\n" + //filekey will contain uuid and aes key
     "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
     "      \n"
     );
