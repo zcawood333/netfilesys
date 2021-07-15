@@ -123,11 +123,11 @@ async function getIterThroughArgs(args) {
             let uuid = arg.replace(/-/g,'');
             getIntervals[uuid] = {
                 interval: setInterval(() => {
-                    if (debug) {console.log(`interval activated for uuid: ${uuid}`);}
                     if (getIntervals[uuid]['attempts'] < numGetAttempts) {
                         sendMulticastMsg('g' + uuid);
                         getIntervals[uuid]['attempts']++;
                     } else {
+                        if (debug) {console.log(`file with uuid: ${uuid} not found`);}
                         if (debug) {console.log(`now deleting interval for uuid: ${uuid}`);}
                         clearInterval(getIntervals[uuid]['interval']);
                         delete getIntervals[uuid];
@@ -177,7 +177,6 @@ async function initMulticastClient() {
             case 'h':
                 //validate uuid
                 let uuid = message.slice(1);
-                if (debug) {console.log(`parsed uuid: ${uuid}`)}
                 if (validUUID(uuid) && getIntervals[uuid]) {
                     //clear uuid interval
                     clearInterval(getIntervals[uuid]['interval']);
