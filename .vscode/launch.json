@@ -48,7 +48,7 @@
                             "f69e1bd7eb234ab7b34030127fef2e4b", "--debug"]
         },
         {
-            "name": "Client GET (multiple files w/ bad request)",
+            "name": "Client GET (multiple files w/ nonexistent request)",
             "program": "${workspaceFolder}/node_client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -58,6 +58,39 @@
             "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
                             "17bf4d4e56b54732bbc5c4f8fc207213", 
                             "495f221a1e144d4691fdc12314d48ed0", 
+                            "0123456789abcdeffedcba9876543210",
+                            "f356591135654b3e866594164b98f8f2", 
+                            "f69e1bd7eb234ab7b34030127fef2e4b", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET (multiple files w/ invalid request)",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
+                            "17bf4d4e56b54732bbc5c4f8fc207213", 
+                            "495f221a1e144d4691fdc12314d48ed0", 
+                            "g123456789abcdeffedcba9876543210",
+                            "f356591135654b3e866594164b98f8f2", 
+                            "f69e1bd7eb234ab7b34030127fef2e4b", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET (multiple files w/ nonexistent/invalid requests)",
+            "program": "${workspaceFolder}/node_client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
+                            "17bf4d4e56b54732bbc5c4f8fc207213", 
+                            "495f221a1e144d4691fdc12314d48ed0", 
+                            "g123456789abcdeffedcba9876543210",
                             "0123456789abcdeffedcba9876543210",
                             "f356591135654b3e866594164b98f8f2", 
                             "f69e1bd7eb234ab7b34030127fef2e4b", 
