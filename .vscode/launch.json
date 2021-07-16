@@ -11,17 +11,103 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/server.js"
+            "program": "${workspaceFolder}/server/server.js"
         },
         {
             "name": "Client GET",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["GET", "eea70be55a704722ae543d23125e0a53", "--debug"]
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug"]
+        },
+        {
+            "name": "Client GET (file doesn't exist)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "0123456789abcdeffedcba9876543210", "--debug"]
+        },
+        {
+            "name": "Client GET (multiple files)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                             "--debug"]
+        },
+        {
+            "name": "Client GET (multiple files w/ nonexistent request)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
+                            "0123456789abcdeffedcba9876543210",
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET (multiple files w/ invalid request)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
+                            "g123456789abcdeffedcba9876543210",
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET (multiple files w/ nonexistent/invalid requests)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4",
+                            "0123456789abcdeffedcba9876543210", 
+                            "g123456789abcdeffedcba9876543210",
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                            "--debug"]
+        },
+        {
+            "name": "Client PUT",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
+        },
+        {
+            "name": "Client POST",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/b.txt", "--debug"]
         },
         {
             "type": "pwa-node",
@@ -30,22 +116,22 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/node_client/client.js",
-            "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/a.txt"]
+            "program": "${workspaceFolder}/client/client.js",
+            "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/c.txt"]
         },
         {
             "name": "Client Download",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["--debug", "--path=/download/eea70be55a704722ae543d23125e0a53"]
+            "args": ["--debug", "--path=/download/09d84ab98d994102a9a32a384e0423f9"]
         },
         {
             "name": "Client Multicast",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"

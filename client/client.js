@@ -11,7 +11,6 @@
 const argv = require('minimist')(process.argv.slice(2));
 const http = require('http');
 const formData = require('form-data');
-const form = new formData();
 const fs = require('fs');
 const dgram = require('dgram');
 const multicastClient = dgram.createSocket('udp4');
@@ -19,6 +18,9 @@ const multicastAddr = '230.185.192.108';
 const multicastServerPort = 5002;
 const multicastClientPort = 5001;
 const { exit } = require('process');
+const numGetAttempts = 8; // number of attempts to GET a file
+const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
+const getDownloadPath = '/downloads/';
 
 //Defaults
 let tcpServerPort = 5000;
@@ -26,11 +28,7 @@ let tcpServerHostname = 'localhost'
 let path = '';
 let method = 'GET';
 let fpath = null;
-let postFile = null;
-let get = true;
-let post = false;
-let multicastMsg = null;
-let uuid = null;
+let getIntervals = {};
 
 
 
@@ -65,17 +63,15 @@ if (argv._.length > 0) {
             throw new Error(`Unrecognized command: ${argv._[0]}`)
     }
 } else {
-    //flag based, old implementation
+    //flag based, old implementation; probably needs cleaned up eventually
     if (argv.multicast) {
         //send a multicast message and close the connection
-        multicastMsg = argv.multicast;
         initMulticastClient();
-        sendMulticastMsg(multicastMsg, true);
+        sendMulticastMsg(argv.multicast, true);
     } else {
         //send a http request
         //argv handling and error checking
         argsHandler();
-
         //create http request
         const options = {
             hostname: tcpServerHostname,
@@ -84,30 +80,57 @@ if (argv._.length > 0) {
             method: 'GET'
         }        
         //make POST-specific changes
+        let form = undefined;
         if (method === 'POST') {
-            changeMethodToPost(options);
+            form = new formData();
+            changeMethodToPost(options, form);
         }
-
         const req = http.request(options);
-
         //init req event listeners
         initRequest(req);
-
         //send request
-        sendRequest(req);
+        sendRequest(req, method === 'POST', form);
     }
 }
 
 //FUNCTIONS
 async function GET() {
-    if (argv._.length !== 2) {
-        throw new Error('Usage: GET <filekey>');
+    if (argv._.length < 2) {
+        throw new Error('Usage: GET <filekey> <filekey2> ...');
     }
-    if (validUUID(argv._[1])) {
-        uuid = argv._[1];
-        await initMulticastClient();
-        sendMulticastMsg('g' + uuid);
-    }
+    await initMulticastClient();
+    let args = argv._.slice(1);
+    await getIterThroughArgs(args);
+    let closeClient = setInterval(() => {
+        if (Object.keys(getIntervals).length === 0) {
+            multicastClient.close();
+            clearInterval(closeClient);
+        }
+    }, getAttemptTimeout);
+}
+async function getIterThroughArgs(args) {
+    args.forEach(arg => {
+        if (debug) {console.log(`current uuid: ${arg}`);}
+        if (validUUID(arg)) {
+            let uuid = arg.replace(/-/g,'');
+            getIntervals[uuid] = {
+                interval: setInterval(() => {
+                    if (getIntervals[uuid]['attempts'] < numGetAttempts) {
+                        sendMulticastMsg('g' + uuid);
+                        getIntervals[uuid]['attempts']++;
+                    } else {
+                        if (debug) {console.log(`file with uuid: ${uuid} not found`);}
+                        if (debug) {console.log(`now deleting interval for uuid: ${uuid}`);}
+                        clearInterval(getIntervals[uuid]['interval']);
+                        delete getIntervals[uuid];
+                    }
+                }, getAttemptTimeout),
+                attempts: 0,
+            }
+        } else {
+            if (debug) {console.log(`arg: ${arg} is not a valid uuid`);}
+        }
+    });
 }
 function validUUID(val) {
     let newVal = val.replace(/-/g,'');
@@ -115,12 +138,10 @@ function validUUID(val) {
     for (let i = 0; i < newVal.length; i++) {
         let char = newVal.charAt(i);
         if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {continue}
-        throw new Error('Invalid UUID');
+        return false;
     }
     return true;
 }
-function POST() {}
-function PUT() {}
 function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
     const options = {
         hostname: hostname,
@@ -129,8 +150,70 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
         method: 'GET'
     }
     const req = http.request(options);
-    initRequest(req);
+    initRequest(req, true, fileUUID);
     sendRequest(req);
+}
+function PUT() {
+    //check arg to see if it is a valid filePath
+    if (argv._.length < 2) {
+        throw new Error('Usage: PUT <filePath>');
+    }
+    let filePath = argv._[1];
+    if (fs.existsSync(filePath)) {
+        httpPut(tcpServerHostname, tcpServerPort, filePath);
+    }
+}
+function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
+    const options = {
+        hostname: hostname,
+        port: port,
+        path: '/upload',
+        method: 'PUT'
+    }
+    let putFile = undefined;
+    try {
+        putFile = fs.createReadStream(filePath);
+    } catch {
+        throw new Error(`Unable to read file path: ${filePath}`)
+    }
+    const req = http.request(options);
+    initRequest(req);
+    putFile.pipe(req);
+}
+function POST() {
+    //check arg to see if it is a valid filePath
+    if (argv._.length < 2) {
+        throw new Error('Usage: POST <filePath>');
+    }
+    //for implementation of multiple filePaths later
+    //let args = argv._.slice(1);
+    let filePath = argv._[1];
+    if (fs.existsSync(filePath)) {
+        httpPost(tcpServerHostname, tcpServerPort, filePath);
+    }
+}
+function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
+    const options = {
+        hostname: hostname,
+        port: port,
+        path: '/upload',
+        method: 'POST'
+    }
+    //format file data
+    const form = new formData();
+    let postFile = undefined;
+    try {
+        postFile = fs.createReadStream(filePath);
+    } catch {
+        throw new Error(`Unable to read file path: ${filePath}`)
+    }
+    form.append('fileKey', postFile);
+    options.headers = form.getHeaders();
+    //create request
+    const req = http.request(options);
+    initRequest(req);
+    //send request
+    sendRequest(req, true, form);
 }
 async function initMulticastClient() {
     multicastClient.on('listening', function () {
@@ -144,10 +227,18 @@ async function initMulticastClient() {
     multicastClient.on('message', (message, remote) => {   
         if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
         message = message.toString();
-        switch (message.toString().charAt(0)) {
+        switch (message.charAt(0)) {
             case 'h':
-                multicastClient.close();
-                httpGet(remote.address, tcpServerPort, uuid);
+                //validate uuid
+                let uuid = message.slice(1);
+                if (validUUID(uuid) && getIntervals[uuid]) {
+                    //clear uuid interval
+                    clearInterval(getIntervals[uuid]['interval']);
+                    delete getIntervals[uuid];
+                    //get file from server claiming to have it
+                    httpGet(remote.address, tcpServerPort, uuid);
+                }
+                
                 break;
             default:
                 break;
@@ -185,33 +276,37 @@ function argsHandler() {
         }
     }
 }
-function changeMethodToPost(options) {
-    post = true;
-    get = false;
+function changeMethodToPost(options, form) {
     options.method = 'POST';
     if (!(argv.fpath)) {
-        throw new Error('this post request requires a file path');
+        throw new Error('POST request requires a file path');
     }
     fpath = argv.fpath;
-    postFile = fs.createReadStream(fpath);
+    const postFile = fs.createReadStream(fpath);
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
-function initRequest(req) {
+function initRequest(req, GET = false, downloadFileName = 'downloadFile') {
     req.on('error', error => {
         console.error(error)
     });
 
     req.on('response', res => {
         if (debug) {console.log(`statusCode: ${res.statusCode}`)}
-
+        if (GET) {
+            //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
+            let path = `${__dirname}${getDownloadPath}${downloadFileName}`;
+            if (debug) {console.log(`path: ${path}`)}
+            if (!fs.existsSync(path.slice(0,-32))) {fs.mkdirSync(path.slice(0,-32), {recursive: true})};
+            res.pipe(fs.createWriteStream(path));
+        }
         res.on('data', d => {
             if (debug) {console.log(d.toString())}
-        })
-    })
+        });
+    });
 }
-function sendRequest(req) {
-    if (post) {
+function sendRequest(req, POST = false, form = undefined) {
+    if (POST) {
         //request end is implicit after piping form
         form.pipe(req);
     } else {
@@ -222,7 +317,7 @@ function printHelp() {
     console.log("Usage: <command> <param>\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
-    "      GET <UUID>\n" +
+    "      GET <filekey> ...\n" + //filekey will contain uuid and aes key
     "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
     "      \n"
     );
