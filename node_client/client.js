@@ -11,7 +11,6 @@
 const argv = require('minimist')(process.argv.slice(2));
 const http = require('http');
 const formData = require('form-data');
-const form = new formData();
 const fs = require('fs');
 const dgram = require('dgram');
 const multicastClient = dgram.createSocket('udp4');
@@ -29,7 +28,6 @@ let tcpServerHostname = 'localhost'
 let path = '';
 let method = 'GET';
 let fpath = null;
-let postFile = null;
 let get = true;
 let post = false;
 let multicastMsg = null;
@@ -87,8 +85,10 @@ if (argv._.length > 0) {
             method: 'GET'
         }        
         //make POST-specific changes
+        let form = undefined;
         if (method === 'POST') {
-            changeMethodToPost(options);
+            form = new formData();
+            changeMethodToPost(options, form);
         }
 
         const req = http.request(options);
@@ -97,7 +97,7 @@ if (argv._.length > 0) {
         initRequest(req);
 
         //send request
-        sendRequest(req);
+        sendRequest(req, method === 'POST', form);
     }
 }
 
@@ -160,7 +160,41 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
     sendRequest(req);
 }
 function PUT() {}
-function POST() {}
+function POST() {
+    //check arg to see if it is a valid filePath
+    if (argv._.length < 2) {
+        throw new Error('Usage: POST <filePath>');
+    }
+    //for implementation of multiple filePaths later
+    //let args = argv._.slice(1);
+    let filePath = argv._[1];
+    if (fs.existsSync(filePath)) {
+        httpPost(tcpServerHostname, tcpServerPort, filePath);
+    }
+}
+function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
+    const options = {
+        hostname: hostname,
+        port: port,
+        path: '/upload',
+        method: 'POST'
+    }
+    //format file data
+    const form = new formData();
+    let postFile = undefined;
+    try {
+        postFile = fs.createReadStream(filePath);
+    } catch {
+        throw new Error(`Unable to read file path: ${filePath}`)
+    }
+    form.append('fileKey', postFile);
+    options.headers = form.getHeaders();
+    //create request
+    const req = http.request(options);
+    initRequest(req);
+    //send request
+    sendRequest(req, true, form);
+}
 async function initMulticastClient() {
     multicastClient.on('listening', function () {
         if (debug) {
@@ -222,7 +256,7 @@ function argsHandler() {
         }
     }
 }
-function changeMethodToPost(options) {
+function changeMethodToPost(options, form) {
     post = true;
     get = false;
     options.method = 'POST';
@@ -230,7 +264,7 @@ function changeMethodToPost(options) {
         throw new Error('POST request requires a file path');
     }
     fpath = argv.fpath;
-    postFile = fs.createReadStream(fpath);
+    const postFile = fs.createReadStream(fpath);
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
@@ -253,8 +287,9 @@ function initRequest(req, uuid = '') {
         });
     });
 }
-function sendRequest(req) {
-    if (post) {
+function sendRequest(req, POST = false, form = undefined) {
+    //post is global and used in flag based implementation; POST is local and used in command based implementation
+    if (post || POST) {
         //request end is implicit after piping form
         form.pipe(req);
     } else {
