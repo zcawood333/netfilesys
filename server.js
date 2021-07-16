@@ -81,11 +81,11 @@ app.get('/download/:uuid', (req, res) => {
 });
 
 app.put('/upload', (req, res) => {
-    uploadFile(req, res, 'PUT');
+    uploadDirectFile(req, res);
 });
 
 app.post('/upload', (req, res) => {
-    uploadFile(req, res, 'POST');
+    uploadMultipartFile(req, res);
 });
 
 //start both tcp and udp server
@@ -134,10 +134,10 @@ function multicastGet(message, remote) {
         sendMulticastMsg('h' + uuid, false, undefined, remote.address);
     }
 }
-function uploadFile(req, res, method) {
+function uploadMultipartFile(req, res) {
     if (debug) {
-        console.log(method, ' request headers: ', req.headers);
-        console.log(method, ' request body: ', req.body);
+        console.log('POST request headers: ', req.headers);
+        console.log('POST request body: ', req.body);
         console.log('Files: ', req.files);
     }
     let fp;
@@ -158,8 +158,8 @@ function uploadFile(req, res, method) {
     uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
     if (debug) {console.log(`uuid turned into path: ${uuid}`)};
     path = `${__dirname}${uploadsDir}${uuid}`;
-
     if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
+
     fp.mv(path, err => {
         if (err) {
             if (debug) {console.log('file unable to be uploaded (1)', err)};
@@ -167,7 +167,7 @@ function uploadFile(req, res, method) {
         } else {
             if (debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
             const today = new Date(Date.now());
-            fs.appendFile(uploadLogPath, `${fp.name},${ogUUID},${today.toISOString()}\n`, err => {
+            fs.appendFile(uploadLogPath, `POST,${fp.name},${ogUUID},${today.toISOString()}\n`, err => {
                 if (err) {
                     if (debug) {console.log('file unable to be uploaded (2)', err)};
                     fs.rm(path, err => {
@@ -185,4 +185,68 @@ function uploadFile(req, res, method) {
             });
         };
     });    
+}
+function uploadDirectFile(req, res) {
+    if (debug) {
+        console.log('PUT request headers: ', req.headers);
+        console.log('PUT request body: ', req.body);
+    }
+    //generate and parse uuid/filepath
+    const ogUUID = uuidv4();
+    if (debug) {console.log(`uuid: ${ogUUID}`)};
+    const noDashesUUID = ogUUID.replace(/-/g,'');
+    if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
+    uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
+    if (debug) {console.log(`uuid turned into path: ${uuid}`)};
+    const path = `${__dirname}${uploadsDir}${uuid}`;
+    if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
+    //write req contents to the filepath
+    const fileStream = fs.createWriteStream(path);
+    fileStream.on('error', err => {
+        if (err) {
+            if (debug) {console.log('Writable stream error: ', err);}
+            fs.rm(path, err => {
+                if (err) {
+                    if (debug) {console.log(`File unable to be removed at ${path}`)};
+                } else {
+                    if (debug) {console.log(`File removed from ${path}`)};
+                }
+            });
+            return res.status(500).send(err);
+        }
+    });
+    req.on('error', err => {
+        if (err) {
+            if (debug) {console.log('Request stream error: ', err);}
+            fs.rm(path, err => {
+                if (err) {
+                    if (debug) {console.log(`File unable to be removed at ${path}`)};
+                } else {
+                    if (debug) {console.log(`File removed from ${path}`)};
+                }
+            });
+            return res.status(500).send(err);
+        }
+    });
+    req.on('end', () => {
+        const today = new Date(Date.now());
+        fs.appendFile(uploadLogPath, `PUT,,${ogUUID},${today.toISOString()}\n`, err => {
+            if (err) {
+                if (debug) {console.log('file unable to be uploaded (3)', err)};
+                fs.rm(path, err => {
+                    if (err) {
+                        if (debug) {console.log(`File unable to be removed at ${path}`)};
+                    } else {
+                        if (debug) {console.log(`File removed from ${path}`)};
+                    }
+                });
+                return res.status(500).send(err);
+            } else {
+                if (debug) {console.log('file upload logged successfully')};
+                res.send(noDashesUUID);
+                fileStream.close();
+            }
+        });
+    });
+    req.pipe(fileStream); 
 }

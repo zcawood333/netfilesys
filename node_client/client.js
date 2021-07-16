@@ -153,7 +153,33 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
     initRequest(req, true, fileUUID);
     sendRequest(req);
 }
-function PUT() {}
+function PUT() {
+    //check arg to see if it is a valid filePath
+    if (argv._.length < 2) {
+        throw new Error('Usage: PUT <filePath>');
+    }
+    let filePath = argv._[1];
+    if (fs.existsSync(filePath)) {
+        httpPut(tcpServerHostname, tcpServerPort, filePath);
+    }
+}
+function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
+    const options = {
+        hostname: hostname,
+        port: port,
+        path: '/upload',
+        method: 'PUT'
+    }
+    let putFile = undefined;
+    try {
+        putFile = fs.createReadStream(filePath);
+    } catch {
+        throw new Error(`Unable to read file path: ${filePath}`)
+    }
+    const req = http.request(options);
+    initRequest(req);
+    putFile.pipe(req);
+}
 function POST() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
