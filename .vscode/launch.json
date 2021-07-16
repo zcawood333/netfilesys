@@ -21,7 +21,7 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["GET", "eea70be55a704722ae543d23125e0a53", "--debug"]
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug"]
         },
         {
             "name": "Client GET (file doesn't exist)",
@@ -127,7 +127,7 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["--debug", "--path=/download/eea70be55a704722ae543d23125e0a53"]
+            "args": ["--debug", "--path=/download/09d84ab98d994102a9a32a384e0423f9"]
         },
         {
             "name": "Client Multicast",
