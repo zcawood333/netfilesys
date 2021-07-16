@@ -28,9 +28,6 @@ let tcpServerHostname = 'localhost'
 let path = '';
 let method = 'GET';
 let fpath = null;
-let get = true;
-let post = false;
-let multicastMsg = null;
 let getIntervals = {};
 
 
@@ -66,17 +63,15 @@ if (argv._.length > 0) {
             throw new Error(`Unrecognized command: ${argv._[0]}`)
     }
 } else {
-    //flag based, old implementation
+    //flag based, old implementation; probably needs cleaned up eventually
     if (argv.multicast) {
         //send a multicast message and close the connection
-        multicastMsg = argv.multicast;
         initMulticastClient();
-        sendMulticastMsg(multicastMsg, true);
+        sendMulticastMsg(argv.multicast, true);
     } else {
         //send a http request
         //argv handling and error checking
         argsHandler();
-
         //create http request
         const options = {
             hostname: tcpServerHostname,
@@ -90,12 +85,9 @@ if (argv._.length > 0) {
             form = new formData();
             changeMethodToPost(options, form);
         }
-
         const req = http.request(options);
-
         //init req event listeners
         initRequest(req);
-
         //send request
         sendRequest(req, method === 'POST', form);
     }
@@ -135,6 +127,8 @@ async function getIterThroughArgs(args) {
                 }, getAttemptTimeout),
                 attempts: 0,
             }
+        } else {
+            if (debug) {console.log(`arg: ${arg} is not a valid uuid`);}
         }
     });
 }
@@ -144,7 +138,7 @@ function validUUID(val) {
     for (let i = 0; i < newVal.length; i++) {
         let char = newVal.charAt(i);
         if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {continue}
-        throw new Error('Invalid UUID');
+        return false;
     }
     return true;
 }
@@ -156,7 +150,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
         method: 'GET'
     }
     const req = http.request(options);
-    initRequest(req, fileUUID);
+    initRequest(req, true, fileUUID);
     sendRequest(req);
 }
 function PUT() {}
@@ -257,8 +251,6 @@ function argsHandler() {
     }
 }
 function changeMethodToPost(options, form) {
-    post = true;
-    get = false;
     options.method = 'POST';
     if (!(argv.fpath)) {
         throw new Error('POST request requires a file path');
@@ -268,16 +260,16 @@ function changeMethodToPost(options, form) {
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
-function initRequest(req, uuid = '') {
+function initRequest(req, GET = false, downloadFileName = 'downloadFile') {
     req.on('error', error => {
         console.error(error)
     });
 
     req.on('response', res => {
         if (debug) {console.log(`statusCode: ${res.statusCode}`)}
-        if (uuid != '') {
+        if (GET) {
             //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
-            let path = `${__dirname}${getDownloadPath}${uuid}`;
+            let path = `${__dirname}${getDownloadPath}${downloadFileName}`;
             if (debug) {console.log(`path: ${path}`)}
             if (!fs.existsSync(path.slice(0,-32))) {fs.mkdirSync(path.slice(0,-32), {recursive: true})};
             res.pipe(fs.createWriteStream(path));
@@ -288,8 +280,7 @@ function initRequest(req, uuid = '') {
     });
 }
 function sendRequest(req, POST = false, form = undefined) {
-    //post is global and used in flag based implementation; POST is local and used in command based implementation
-    if (post || POST) {
+    if (POST) {
         //request end is implicit after piping form
         form.pipe(req);
     } else {
