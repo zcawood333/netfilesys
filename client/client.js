@@ -158,10 +158,15 @@ function PUT() {
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>');
     }
-    let filePath = argv._[1];
-    if (fs.existsSync(filePath)) {
-        httpPut(tcpServerHostname, tcpServerPort, filePath);
-    }
+    let args = argv._.slice(1);
+    args.forEach(arg => {
+        let filePath = arg;
+        if (fs.existsSync(filePath)) {
+            httpPut(tcpServerHostname, tcpServerPort, filePath);
+        } else {
+            if (debug) {console.log(`filepath: ${filePath} does not exist`);}
+        }
+    });
 }
 function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
     const options = {
@@ -195,7 +200,7 @@ function POST() {
         throw new Error('Usage: POST <filePath> <filePath2> ...');
     }
     let args = argv._.slice(1);
-    args.forEach((arg) => {
+    args.forEach(arg => {
         let filePath = arg;
         if (fs.existsSync(filePath)) {
             httpPost(tcpServerHostname, tcpServerPort, filePath);
