@@ -174,23 +174,35 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
     try {
         putFile = fs.createReadStream(filePath);
     } catch {
-        throw new Error(`Unable to read file path: ${filePath}`)
+        if (debug) {console.log(`Unable to read file path: ${filePath}`);}
+        return;
     }
     const req = http.request(options);
     initRequest(req);
+    putFile.on('error', err => {
+        console.error(err);
+    });
+    putFile.on('end', () => {
+        if (debug) {console.log(`Sent PUT request with path: ${filePath}`);}
+        putFile.close();
+
+    })
     putFile.pipe(req);
 }
 function POST() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
-        throw new Error('Usage: POST <filePath>');
+        throw new Error('Usage: POST <filePath> <filePath2> ...');
     }
-    //for implementation of multiple filePaths later
-    //let args = argv._.slice(1);
-    let filePath = argv._[1];
-    if (fs.existsSync(filePath)) {
-        httpPost(tcpServerHostname, tcpServerPort, filePath);
-    }
+    let args = argv._.slice(1);
+    args.forEach((arg) => {
+        let filePath = arg;
+        if (fs.existsSync(filePath)) {
+            httpPost(tcpServerHostname, tcpServerPort, filePath);
+        } else {
+            if (debug) {console.log(`filePath: ${filePath} does not exist`);}
+        }
+    });
 }
 function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
     const options = {
@@ -205,8 +217,16 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) 
     try {
         postFile = fs.createReadStream(filePath);
     } catch {
-        throw new Error(`Unable to read file path: ${filePath}`)
+        if (debug) {console.log(`Unable to read file path: ${filePath}`);}
+        return;
     }
+    postFile.on('error', err => {
+        console.error(err);
+    });
+    postFile.on('end', () => {
+        if (debug) {console.log(`Sent POST request with path: ${filePath}`);}
+        postFile.close();
+    });
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
     //create request
@@ -287,8 +307,8 @@ function changeMethodToPost(options, form) {
     options.headers = form.getHeaders();
 }
 function initRequest(req, GET = false, downloadFileName = 'downloadFile') {
-    req.on('error', error => {
-        console.error(error)
+    req.on('error', err => {
+        console.error(err)
     });
 
     req.on('response', res => {
