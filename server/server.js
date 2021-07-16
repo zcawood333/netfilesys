@@ -12,9 +12,9 @@ const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const tcpAddr = '0.0.0.0';
 const tcpPort = 5000;
-const uploadsDir = '/uploads/';
-const uploadLogPath = './logs/upload_log.csv';
-const downloadLogPath = './logs/download_log.csv';
+const uploadsDir = `${__dirname}/uploads/`;
+const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
+const downloadLogPath = `${__dirname}/logs/download_log.csv`;
 
 //testing variables
 const debug = true;
@@ -30,7 +30,7 @@ app.get('/download/:uuid', (req, res) => {
     if (debug) {console.log('GET request: ', req.params)};
     let parsedUUIDPath = req.params.uuid;
     parsedUUIDPath = parsedUUIDPath.replace(/-/g,'').replace(/(.{3})/g, "$1/");
-    let path = `${__dirname}${uploadsDir}${parsedUUIDPath}`;
+    let path = `${uploadsDir}${parsedUUIDPath}`;
     
     if (debug) {console.log(`path: ${path}`)};
 
@@ -93,6 +93,7 @@ if (debug) console.log(`Starting http based server on ${tcpAddr}:${tcpPort}`);
 app.listen(tcpPort, tcpAddr);
 if (debug) console.log(`Starting multicastServer on port ${multicastServerPort}`);
 initMulticastServer();
+console.log(`current directory: ${__dirname}`);
 
 //FUNCTIONS
 function initMulticastServer() {
@@ -129,7 +130,7 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from server
 function multicastGet(message, remote) {
     let uuid = message.toString().slice(1);
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
-    let path = 'uploads/' + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    let path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (fs.existsSync(path)) {
         sendMulticastMsg('h' + uuid, false, undefined, remote.address);
     }
@@ -157,7 +158,7 @@ function uploadMultipartFile(req, res) {
     if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
     uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
     if (debug) {console.log(`uuid turned into path: ${uuid}`)};
-    path = `${__dirname}${uploadsDir}${uuid}`;
+    path = `${uploadsDir}${uuid}`;
     if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
 
     fp.mv(path, err => {
@@ -198,7 +199,7 @@ function uploadDirectFile(req, res) {
     if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
     uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
     if (debug) {console.log(`uuid turned into path: ${uuid}`)};
-    const path = `${__dirname}${uploadsDir}${uuid}`;
+    const path = `${uploadsDir}${uuid}`;
     if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
     //write req contents to the filepath
     const fileStream = fs.createWriteStream(path);

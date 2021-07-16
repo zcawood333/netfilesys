@@ -11,11 +11,11 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/server.js"
+            "program": "${workspaceFolder}/server/server.js"
         },
         {
             "name": "Client GET",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -25,7 +25,7 @@
         },
         {
             "name": "Client GET (file doesn't exist)",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -35,7 +35,7 @@
         },
         {
             "name": "Client GET (multiple files)",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -48,7 +48,7 @@
         },
         {
             "name": "Client GET (multiple files w/ nonexistent request)",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -62,7 +62,7 @@
         },
         {
             "name": "Client GET (multiple files w/ invalid request)",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -76,7 +76,7 @@
         },
         {
             "name": "Client GET (multiple files w/ nonexistent/invalid requests)",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -91,7 +91,7 @@
         },
         {
             "name": "Client PUT",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -101,7 +101,7 @@
         },
         {
             "name": "Client POST",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -116,12 +116,12 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/c.txt"]
         },
         {
             "name": "Client Download",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -131,7 +131,7 @@
         },
         {
             "name": "Client Multicast",
-            "program": "${workspaceFolder}/node_client/client.js",
+            "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
