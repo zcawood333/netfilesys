@@ -100,6 +100,43 @@
             "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
         },
         {
+            "name": "Client PUT (file doesn't exist)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/doesNotExist.txt", "--debug"]
+        },
+        {
+            "name": "Client PUT (multiple files)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT","${workspaceFolder}/../test_files_to_upload/a.txt",
+                            "${workspaceFolder}/../test_files_to_upload/b.txt",
+                            "${workspaceFolder}/../test_files_to_upload/c.txt", 
+                            "--debug"]
+        },
+        {
+            "name": "Client PUT (multiple files w/ nonexistent filepath)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT","${workspaceFolder}/../test_files_to_upload/a.txt",
+                            "${workspaceFolder}/../test_files_to_upload/b.txt",
+                            "${workspaceFolder}/../test_files_to_upload/doesNotExist.txt",
+                            "${workspaceFolder}/../test_files_to_upload/c.txt", 
+                            "--debug"]
+        },
+        {
             "name": "Client POST",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
