@@ -41,11 +41,10 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
-                            "17bf4d4e56b54732bbc5c4f8fc207213", 
-                            "495f221a1e144d4691fdc12314d48ed0", 
-                            "f356591135654b3e866594164b98f8f2", 
-                            "f69e1bd7eb234ab7b34030127fef2e4b", "--debug"]
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                             "--debug"]
         },
         {
             "name": "Client GET (multiple files w/ nonexistent request)",
@@ -55,12 +54,10 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
-                            "17bf4d4e56b54732bbc5c4f8fc207213", 
-                            "495f221a1e144d4691fdc12314d48ed0", 
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
                             "0123456789abcdeffedcba9876543210",
-                            "f356591135654b3e866594164b98f8f2", 
-                            "f69e1bd7eb234ab7b34030127fef2e4b", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
                             "--debug"]
         },
         {
@@ -71,12 +68,10 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
-                            "17bf4d4e56b54732bbc5c4f8fc207213", 
-                            "495f221a1e144d4691fdc12314d48ed0", 
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
                             "g123456789abcdeffedcba9876543210",
-                            "f356591135654b3e866594164b98f8f2", 
-                            "f69e1bd7eb234ab7b34030127fef2e4b", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
                             "--debug"]
         },
         {
@@ -87,13 +82,11 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["GET", "eea70be55a704722ae543d23125e0a53", 
-                            "17bf4d4e56b54732bbc5c4f8fc207213", 
-                            "495f221a1e144d4691fdc12314d48ed0", 
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4",
+                            "0123456789abcdeffedcba9876543210", 
                             "g123456789abcdeffedcba9876543210",
-                            "0123456789abcdeffedcba9876543210",
-                            "f356591135654b3e866594164b98f8f2", 
-                            "f69e1bd7eb234ab7b34030127fef2e4b", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
                             "--debug"]
         },
         {
@@ -114,7 +107,7 @@
                 "<node_internals>/**"
             ],
             "type": "pwa-node",
-            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/b.txt", "--debug"]
         },
         {
             "type": "pwa-node",
@@ -124,7 +117,7 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/node_client/client.js",
-            "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/a.txt"]
+            "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/c.txt"]
         },
         {
             "name": "Client Download",
