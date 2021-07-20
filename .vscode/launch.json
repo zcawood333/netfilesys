@@ -90,6 +90,82 @@
                             "--debug"]
         },
         {
+            "name": "Client GET encrypted",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", "--debug"]
+        },
+        {
+            "name": "Client GET encrypted (file doesn't exist)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--debug"]
+        },
+        {
+            "name": "Client GET encrypted (multiple files)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a", 
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                             "--debug"]
+        },
+        {
+            "name": "Client GET encrypted (multiple files w/ nonexistent request)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a", 
+                            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET encrypted (multiple files w/ invalid request)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a", 
+                            "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET encrypted (multiple files w/ nonexistent/invalid requests)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a",
+                            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 
+                            "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                            "--debug"]
+        },
+        {
             "name": "Client PUT",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
