@@ -58,7 +58,11 @@ if (argv._.length > 0) {
             GET();
             break;
         case 'post':
-            POST();
+            if (argv.noEncryption) {
+                POST(false);
+            } else {
+                POST(true);
+            }
             break;
         case 'put':
             if (argv.noEncryption) {
@@ -212,7 +216,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
     })
     putFile.pipe(req);
 }
-function POST() {
+function POST(encrypt = false) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
@@ -221,13 +225,22 @@ function POST() {
     args.forEach(arg => {
         let filePath = arg;
         if (fs.existsSync(filePath)) {
-            httpPost(tcpServerHostname, tcpServerPort, filePath);
+            if (encrypt) {
+                const uuid = uuidv4().replace(/-/g,'');
+                const iv = crypto.randomBytes(8).toString('hex');
+                const encryptedFilePath = `${tempFilePath}${uuid}`;
+                aesEncrypt(filePath, encryptedFilePath, uuid, iv, !debug, () => {
+                    httpPost(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv);
+                }); 
+            } else {
+                httpPost(tcpServerHostname, tcpServerPort, filePath);
+            }
         } else {
             if (debug) {console.log(`filePath: ${filePath} does not exist`);}
         }
     });
 }
-function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
+function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '') {
     const options = {
         hostname: hostname,
         port: port,
@@ -254,7 +267,7 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) 
     options.headers = form.getHeaders();
     //create request
     const req = http.request(options);
-    initRequest(req);
+    initRequest(req, false, undefined, true, false, key, iv);
     //send request
     sendRequest(req, true, form);
 }
@@ -378,7 +391,7 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile', POST =
             res.pipe(fs.createWriteStream(path));
         }
         res.on('data', d => {
-            if (debug) {console.log(d.toString())}
+            if (debug) {console.log('data: ', d.toString())}
             if (POST || PUT) {
                 logUpload(POST ? 'POST' : 'PUT', d, key, iv, () => {
                     if (debug) {console.log(`file upload logged successfully`);}
