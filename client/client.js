@@ -61,7 +61,11 @@ if (argv._.length > 0) {
             POST();
             break;
         case 'put':
-            PUT();
+            if (argv.noEncryption) {
+                PUT(false);
+            } else {
+                PUT(true);
+            }
             break;
         default:
             throw new Error(`Unrecognized command: ${argv._[0]}`)
@@ -157,10 +161,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
     initRequest(req, true, fileUUID);
     sendRequest(req);
 }
-function secPUT() {
-    PUT(true);
-}
-function PUT(encrypt = false) {
+function PUT(encrypt) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
@@ -395,7 +396,7 @@ function sendRequest(req, POST = false, form = undefined) {
     }
 }
 function printHelp() {
-    console.log("Usage: <command> <param>... [flags]...\n" +
+    console.log("Usage: <command> <param>... [--debug] [--noEncryption]\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
     "      GET <filekey>...\n" + //filekey will contain uuid and aes key and iv
