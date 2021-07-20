@@ -122,7 +122,20 @@ async function GET() {
 }
 async function getIterThroughArgs(args) {
     args.forEach(arg => {
-        if (debug) {console.log(`current uuid: ${arg}`);}
+        if (debug) {console.log(`current arg: ${arg}`);}
+        let key = '';
+        let iv = '';
+        if (arg.length > 32) {
+            let filekey = arg;
+            arg = filekey.substr(0, 32);
+            let keyIV = filekey.slice(32);
+            key = keyIV.substr(0, 32);
+            iv = keyIV.slice(32);
+            if (!validUUID(key)) {
+                if (debug) {console.log(`filekey: ${filekey} is invalid`);}
+                return;
+            }
+        }
         if (validUUID(arg)) {
             let uuid = arg.replace(/-/g,'');
             getIntervals[uuid] = {
@@ -138,15 +151,44 @@ async function getIterThroughArgs(args) {
                     }
                 }, getAttemptTimeout),
                 attempts: 0,
+                key: key,
+                iv: iv,
             }
         } else {
             if (debug) {console.log(`arg: ${arg} is not a valid uuid`);}
         }
     });
 }
+function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => {}) {
+    //decrypts file at old path using key, writes it to new file path
+    if (debug) {
+        console.log(`key: ${key}`);
+        console.log(`iv: ${iv}`);
+    }
+    //assumes the old file path exists
+    if (!fs.existsSync(unencryptedFilePath.slice(0,-32))) {fs.mkdirSync(unencryptedFilePath.slice(0,-32), {recursive: true})};
+    const readStream = fs.createReadStream(encryptedFilePath);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    const writeStream = fs.createWriteStream(unencryptedFilePath);
+    readStream.on('error', err => {
+        console.error(err);
+    });
+    decipher.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('finish', () => {
+        readStream.close();
+        writeStream.close();
+        callback();
+    });
+    readStream.pipe(decipher).pipe(writeStream);
+}
 function validUUID(val) {
     let newVal = val.replace(/-/g,'');
-    if (newVal.length !== 32) {throw new Error('Invalid UUID')}
+    if (newVal.length !== 32) {return false}
     for (let i = 0; i < newVal.length; i++) {
         let char = newVal.charAt(i);
         if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {continue}
@@ -154,7 +196,7 @@ function validUUID(val) {
     }
     return true;
 }
-function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
+function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, key = '', iv = '') {
     const options = {
         hostname: hostname,
         port: port,
@@ -162,7 +204,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
         method: 'GET'
     }
     const req = http.request(options);
-    initRequest(req, true, fileUUID);
+    initRequest(req, true, fileUUID, false, false, key, iv);
     sendRequest(req);
 }
 function PUT(encrypt) {
@@ -234,7 +276,11 @@ function POST(encrypt = false) {
                 const iv = crypto.randomBytes(8).toString('hex');
                 const encryptedFilePath = `${tempFilePath}${uuid}`;
                 aesEncrypt(filePath, encryptedFilePath, uuid, iv, !debug, () => {
-                    httpPost(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv);
+                    httpPost(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv, () => {
+                        fs.rm(encryptedFilePath, () => {
+                            if (debug) {console.log(`temp file: ${encryptedFilePath} removed`);}
+                        });
+                    });
                 }); 
             } else {
                 httpPost(tcpServerHostname, tcpServerPort, filePath);
@@ -275,15 +321,15 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     //send request
     sendRequest(req, true, form);
 }
-function aesEncrypt(unencryptedfilePath, encryptedFilePath, key, iv, callback = () => {}) {
+function aesEncrypt(unencryptedFilePath, encryptedFilePath, key, iv, callback = () => {}) {
     //encrypts file at old path using key, writes it to new file path
-    //assumes the old file path exists
-    if (!fs.existsSync(encryptedFilePath.slice(0,-32))) {fs.mkdirSync(encryptedFilePath.slice(0,-32), {recursive: true})};
-    const readStream = fs.createReadStream(unencryptedfilePath);
     if (debug) {
         console.log(`key: ${key}`);
         console.log(`iv: ${iv}`);
     }
+    //assumes the old file path exists
+    if (!fs.existsSync(encryptedFilePath.slice(0,-32))) {fs.mkdirSync(encryptedFilePath.slice(0,-32), {recursive: true})};
+    const readStream = fs.createReadStream(unencryptedFilePath);
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
     const writeStream = fs.createWriteStream(encryptedFilePath);
     readStream.on('error', err => {
@@ -301,7 +347,6 @@ function aesEncrypt(unencryptedfilePath, encryptedFilePath, key, iv, callback = 
         callback();
     });
     readStream.pipe(cipher).pipe(writeStream);
-    //returns new file path to encrypted file
 }
 async function initMulticastClient() {
     multicastClient.on('listening', function () {
@@ -320,11 +365,14 @@ async function initMulticastClient() {
                 //validate uuid
                 let uuid = message.slice(1);
                 if (validUUID(uuid) && getIntervals[uuid]) {
+                    //record key and iv
+                    let key = getIntervals[uuid]['key'];
+                    let iv = getIntervals[uuid]['iv'];
                     //clear uuid interval
                     clearInterval(getIntervals[uuid]['interval']);
                     delete getIntervals[uuid];
                     //get file from server claiming to have it
-                    httpGet(remote.address, tcpServerPort, uuid);
+                    httpGet(remote.address, tcpServerPort, uuid, key, iv);
                 }
                 
                 break;
@@ -390,13 +438,27 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile', POST =
         if (GET) {
             //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
             let path = `${getDownloadPath}${downloadFileName}`;
+            if (key != '') {path = `${tempFilePath}${key}`}
             if (debug) {console.log(`path: ${path}`)}
             if (!fs.existsSync(path.slice(0,-32))) {fs.mkdirSync(path.slice(0,-32), {recursive: true})};
-            res.pipe(fs.createWriteStream(path));
+            let writeStream = fs.createWriteStream(path);
+            writeStream.on('finish', () => {
+                if (key != '') {
+                    aesDecrypt(path, `${getDownloadPath}${downloadFileName}`, key, iv, () => {
+                        fs.rm(path, () => {
+                            if (debug) {console.log(`temp file: ${path} removed`);}
+                        });
+                        if (debug) {console.log(`file downloaded to ${getDownloadPath}${downloadFileName}`);}
+                    });
+                }
+            })
+            res.pipe(writeStream);
         }
         res.on('data', d => {
             if (debug) {console.log('data: ', d.toString())}
-            if (POST || PUT) {
+            if (GET) {
+
+            } else if (POST || PUT) {
                 logUpload(POST ? 'POST' : 'PUT', d, key, iv, () => {
                     if (debug) {console.log(`file upload logged successfully`);}
                 });
