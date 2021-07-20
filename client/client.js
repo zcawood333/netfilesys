@@ -178,8 +178,12 @@ function PUT(encrypt) {
                 const uuid = uuidv4().replace(/-/g,'');
                 const iv = crypto.randomBytes(8).toString('hex');
                 const encryptedFilePath = `${tempFilePath}${uuid}`;
-                aesEncrypt(filePath, encryptedFilePath, uuid, iv, !debug, () => {
-                    httpPut(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv);
+                aesEncrypt(filePath, encryptedFilePath, uuid, iv, () => {
+                    httpPut(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv, () => {
+                        fs.rm(encryptedFilePath, () => {
+                            if (debug) {console.log(`temp file: ${encryptedFilePath} removed`);}
+                        });
+                    });
                 }); 
             } else {
                 httpPut(tcpServerHostname, tcpServerPort, filePath);
@@ -271,7 +275,7 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     //send request
     sendRequest(req, true, form);
 }
-function aesEncrypt(unencryptedfilePath, encryptedFilePath, key, iv, removeTempFile = true, callback = () => {}) {
+function aesEncrypt(unencryptedfilePath, encryptedFilePath, key, iv, callback = () => {}) {
     //encrypts file at old path using key, writes it to new file path
     //assumes the old file path exists
     if (!fs.existsSync(encryptedFilePath.slice(0,-32))) {fs.mkdirSync(encryptedFilePath.slice(0,-32), {recursive: true})};
