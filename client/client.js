@@ -259,8 +259,8 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
         putFile.close();
         callback();
 
-    })
-    putFile.pipe(req);
+    });
+    sendRequest(req, true, putFile);
 }
 function POST(encrypt = false) {
     //check arg to see if it is a valid filePath
@@ -466,10 +466,10 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile', POST =
         });
     });
 }
-function sendRequest(req, POST = false, form = undefined) {
-    if (POST) {
-        //request end is implicit after piping form
-        form.pipe(req);
+function sendRequest(req, piped = false, readStream = undefined) {
+    if (piped) {
+        //request end is implicit after piping
+        readStream.pipe(req);
     } else {
         req.end();
     }
