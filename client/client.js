@@ -22,8 +22,9 @@ const multicastClientPort = 5001;
 const { exit } = require('process');
 const numGetAttempts = 8; // number of attempts to GET a file
 const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
-const getDownloadPath = `${__dirname}/downloads/`;
+const getDownloadPath = `${__dirname}/downloads/`; //where files from GET are stored
 const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
+const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores filekeys (serverUUID + clientKey + clientIV) and the datetime
 
 //Defaults
 let tcpServerPort = 5000;
@@ -159,7 +160,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
 function secPUT() {
     PUT(true);
 }
-function PUT(encrypt = true) {
+function PUT(encrypt = false) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
@@ -173,7 +174,7 @@ function PUT(encrypt = true) {
                 const iv = crypto.randomBytes(8).toString('hex');
                 const encryptedFilePath = `${tempFilePath}${uuid}`;
                 aesEncrypt(filePath, encryptedFilePath, uuid, iv, !debug, () => {
-                    httpPut(tcpServerHostname, tcpServerPort, encryptedFilePath);
+                    httpPut(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv);
                 }); 
             } else {
                 httpPut(tcpServerHostname, tcpServerPort, filePath);
@@ -183,7 +184,7 @@ function PUT(encrypt = true) {
         }
     });
 }
-function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, callback = () => {}) {
+function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '', callback = () => {}) {
     const options = {
         hostname: hostname,
         port: port,
@@ -198,7 +199,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, c
         return;
     }
     const req = http.request(options);
-    initRequest(req);
+    initRequest(req, false, undefined, false, true, key, iv);
     putFile.on('error', err => {
         console.error(err);
     });
@@ -355,7 +356,14 @@ function changeMethodToPost(options, form) {
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
 }
-function initRequest(req, GET = false, downloadFileName = 'downloadFile') {
+function logUpload(method = 'undefined', serverUUID, clientKey, iv, callback = () => {}) {
+    const uploadLogDir = uploadLogPath.split('/').slice(0,-1).join('/');
+    console.log(`uploadLogDir: ${uploadLogDir}`)
+    if (!fs.existsSync(uploadLogDir)) {fs.mkdirSync(uploadLogDir, {recursive: true})};
+    const today = new Date(Date.now());
+    fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+}
+function initRequest(req, GET = false, downloadFileName = 'downloadFile', POST = false, PUT = false, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
     });
@@ -370,6 +378,11 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile') {
         }
         res.on('data', d => {
             if (debug) {console.log(d.toString())}
+            if (POST || PUT) {
+                logUpload(POST ? 'POST' : 'PUT', d, key, iv, () => {
+                    if (debug) {console.log(`file upload logged successfully`);}
+                });
+            }
         });
     });
 }
@@ -385,7 +398,7 @@ function printHelp() {
     console.log("Usage: <command> <param>... [flags]...\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
-    "      GET <filekey>...\n" + //filekey will contain uuid and aes key
+    "      GET <filekey>...\n" + //filekey will contain uuid and aes key and iv
     "      PUT <filepath>...      (POST) is an alias for PUT but does multipart\n" +
     "      \n"
     );
