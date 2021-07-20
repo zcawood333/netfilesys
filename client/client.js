@@ -10,6 +10,8 @@
 //fpath: file path for post request
 const argv = require('minimist')(process.argv.slice(2));
 const http = require('http');
+const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 const formData = require('form-data');
 const fs = require('fs');
 const dgram = require('dgram');
@@ -20,7 +22,8 @@ const multicastClientPort = 5001;
 const { exit } = require('process');
 const numGetAttempts = 8; // number of attempts to GET a file
 const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
-const getDownloadPath = '/downloads/';
+const getDownloadPath = `${__dirname}/downloads/`;
+const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
 
 //Defaults
 let tcpServerPort = 5000;
@@ -153,22 +156,34 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID) {
     initRequest(req, true, fileUUID);
     sendRequest(req);
 }
-function PUT() {
+function secPUT() {
+    PUT(true);
+}
+function PUT(encrypt = true) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
-        throw new Error('Usage: PUT <filePath>');
+        throw new Error('Usage: PUT <filePath>...');
     }
     let args = argv._.slice(1);
     args.forEach(arg => {
         let filePath = arg;
         if (fs.existsSync(filePath)) {
-            httpPut(tcpServerHostname, tcpServerPort, filePath);
+            if (encrypt) {
+                const uuid = uuidv4().replace(/-/g,'');
+                const iv = crypto.randomBytes(8).toString('hex');
+                const encryptedFilePath = `${tempFilePath}${uuid}`;
+                aesEncrypt(filePath, encryptedFilePath, uuid, iv, !debug, () => {
+                    httpPut(tcpServerHostname, tcpServerPort, encryptedFilePath);
+                }); 
+            } else {
+                httpPut(tcpServerHostname, tcpServerPort, filePath);
+            }
         } else {
             if (debug) {console.log(`filepath: ${filePath} does not exist`);}
         }
     });
 }
-function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
+function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, callback = () => {}) {
     const options = {
         hostname: hostname,
         port: port,
@@ -190,6 +205,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
     putFile.on('end', () => {
         if (debug) {console.log(`Sent PUT request with path: ${filePath}`);}
         putFile.close();
+        callback();
 
     })
     putFile.pipe(req);
@@ -197,7 +213,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath) {
 function POST() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
-        throw new Error('Usage: POST <filePath> <filePath2> ...');
+        throw new Error('Usage: POST <filePath>...');
     }
     let args = argv._.slice(1);
     args.forEach(arg => {
@@ -239,6 +255,34 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath) 
     initRequest(req);
     //send request
     sendRequest(req, true, form);
+}
+function aesEncrypt(unencryptedfilePath, encryptedFilePath, key, iv, removeTempFile = true, callback = () => {}) {
+    //encrypts file at old path using key, writes it to new file path
+    //assumes the old file path exists
+    if (!fs.existsSync(encryptedFilePath.slice(0,-32))) {fs.mkdirSync(encryptedFilePath.slice(0,-32), {recursive: true})};
+    const readStream = fs.createReadStream(unencryptedfilePath);
+    if (debug) {
+        console.log(`key: ${key}`);
+        console.log(`iv: ${iv}`);
+    }
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const writeStream = fs.createWriteStream(encryptedFilePath);
+    readStream.on('error', err => {
+        console.error(err);
+    });
+    cipher.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('finish', () => {
+        readStream.close();
+        writeStream.close();
+        callback();
+    });
+    readStream.pipe(cipher).pipe(writeStream);
+    //returns new file path to encrypted file
 }
 async function initMulticastClient() {
     multicastClient.on('listening', function () {
@@ -315,12 +359,11 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile') {
     req.on('error', err => {
         console.error(err)
     });
-
     req.on('response', res => {
         if (debug) {console.log(`statusCode: ${res.statusCode}`)}
         if (GET) {
             //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
-            let path = `${__dirname}${getDownloadPath}${downloadFileName}`;
+            let path = `${getDownloadPath}${downloadFileName}`;
             if (debug) {console.log(`path: ${path}`)}
             if (!fs.existsSync(path.slice(0,-32))) {fs.mkdirSync(path.slice(0,-32), {recursive: true})};
             res.pipe(fs.createWriteStream(path));
@@ -339,11 +382,11 @@ function sendRequest(req, POST = false, form = undefined) {
     }
 }
 function printHelp() {
-    console.log("Usage: <command> <param>\n" +
+    console.log("Usage: <command> <param>... [flags]...\n" +
     " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
     "    command = GET | PUT | POST\n" +
-    "      GET <filekey> ...\n" + //filekey will contain uuid and aes key
-    "      PUT <filename>      (POST) is an alias for PUT but does multipart\n" +
+    "      GET <filekey>...\n" + //filekey will contain uuid and aes key
+    "      PUT <filepath>...      (POST) is an alias for PUT but does multipart\n" +
     "      \n"
     );
 }
