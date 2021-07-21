@@ -186,7 +186,7 @@
                             "--debug"]
         },
         {
-            "name": "Client PUT",
+            "name": "Client PUT encrypted",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -196,7 +196,7 @@
             "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
         },
         {
-            "name": "Client PUT (file doesn't exist)",
+            "name": "Client PUT encrypted (file doesn't exist)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -206,7 +206,7 @@
             "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/doesNotExist.txt", "--debug"]
         },
         {
-            "name": "Client PUT (multiple files)",
+            "name": "Client PUT encrypted (multiple files)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -219,7 +219,7 @@
                             "--debug"]
         },
         {
-            "name": "Client PUT (multiple files w/ nonexistent filepath)",
+            "name": "Client PUT encrypted (multiple files w/ nonexistent filepath)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -233,7 +233,7 @@
                             "--debug"]
         },
         {
-            "name": "Client POST",
+            "name": "Client POST encrypted",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -243,7 +243,7 @@
             "args": ["POST", "${workspaceFolder}/../test_files_to_upload/b.txt", "--debug"]
         },
         {
-            "name": "Client POST (file doesn't exist)",
+            "name": "Client POST encrypted (file doesn't exist)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -253,7 +253,7 @@
             "args": ["POST", "${workspaceFolder}/../test_files_to_upload/doesNotExist.txt", "--debug"]
         },
         {
-            "name": "Client POST (multiple files)",
+            "name": "Client POST encrypted (multiple files)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
@@ -266,7 +266,7 @@
                             "--debug"]
         },
         {
-            "name": "Client POST (multiple files w/ nonexistent filepath)",
+            "name": "Client POST encrypted (multiple files w/ nonexistent filepath)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
