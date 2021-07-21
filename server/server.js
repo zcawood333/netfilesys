@@ -14,7 +14,9 @@ const tcpAddr = '0.0.0.0';
 const tcpPort = 5000;
 const uploadsDir = `${__dirname}/uploads/`;
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
+const uploadLogFormat = {columns: ['method','filename','uuid','datetime']}
 const downloadLogPath = `${__dirname}/logs/download_log.csv`;
+const downloadLogFormat = {columns: ['uuid','datetime']}
 
 //testing variables
 const debug = true;
@@ -34,6 +36,7 @@ app.get('/download/:uuid', (req, res) => {
     
     if (debug) {console.log(`path: ${path}`)};
 
+    validateLogFile(downloadLogPath, downloadLogFormat);
     const today = new Date(Date.now());
     fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
         if (err) {
@@ -153,6 +156,7 @@ function uploadMultipartFile(req, res) {
             return res.status(500).send(err);
         } else {
             if (debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
+            validateLogFile(uploadLogPath, uploadLogFormat);
             const today = new Date(Date.now());
             fs.appendFile(uploadLogPath, `POST,${fp.name},${noDashesUUID},${today.toISOString()}\n`, err => {
                 if (err) {
@@ -211,6 +215,7 @@ function uploadDirectFile(req, res) {
         }
     });
     req.on('end', () => {
+        validateLogFile(uploadLogPath, uploadLogFormat);
         const today = new Date(Date.now());
         fs.appendFile(uploadLogPath, `PUT,,${noDashesUUID},${today.toISOString()}\n`, err => {
             if (err) {
@@ -243,4 +248,12 @@ function createPath(noDashesUUID) {
     const uuidPath = noDashesUUID.replace(/(.{3})/g,"$1/")
     if (debug) {console.log(`uuid turned into path: ${uuidPath}`)};
     return `${uploadsDir}${uuidPath}`;
+}
+function validateLogFile(path, format) {
+    const logDir = path.split('/').slice(0, -1).join('/');
+    if (!fs.existsSync(logDir)) {fs.mkdirSync(logDir, { recursive: true });}
+    if (!fs.existsSync(path)) {
+        fs.appendFileSync(path, format.columns.join(',') + '\n');
+        console.log('created log file: ' + path);
+    }
 }
