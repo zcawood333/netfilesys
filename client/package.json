@@ -3,11 +3,7 @@
   "version": "1.0.0",
   "description": "command line node client utilities",
   "main": "client.js",
-  "scripts": {
-    "upload": "node client.js --method='post' --path=/upload --fpath=/home/zcawood/node_server/test_files_to_upload/a.txt",
-    "download": "node client.js --path=/download/a9c6973e-15a5-404d-8070-c6fb7117f049",
-    "multicast": "node client.js --multicast=\"this is my multicast string\""
-  },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "."
