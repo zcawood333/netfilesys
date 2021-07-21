@@ -270,7 +270,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
     });
     sendRequest(req, true, putFile);
 }
-function POST(encrypt = false) {
+function POST(encrypt) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
@@ -283,7 +283,7 @@ function POST(encrypt = false) {
                 const uuid = uuidv4().replace(/-/g,'');
                 const iv = crypto.randomBytes(8).toString('hex');
                 const encryptedFilePath = `${tempFilePath}${uuid}`;
-                aesEncrypt(filePath, encryptedFilePath, uuid, iv, !debug, () => {
+                aesEncrypt(filePath, encryptedFilePath, uuid, iv, () => {
                     httpPost(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv, () => {
                         fs.rm(encryptedFilePath, () => {
                             if (debug) {console.log(`temp file: ${encryptedFilePath} removed`);}
