@@ -1,14 +1,6 @@
 #!/usr/local/bin/node
 
-//command line client utility; sends get or post requests
-//keyword args: --multicast='message', --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=...
-//multicast: will send a multicast message to default address
-//method: determines whether http request is GET or POST request
-//hostname: hostname to send the request to
-//port: port to send the request to
-//path: path to send the request to; ie. port=/download --> http://hostname:port/download
-//fpath: file path for post request
-const argv = require('minimist')(process.argv.slice(2));
+const argv = processArgv(process.argv.slice(2));
 const http = require('http');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
@@ -499,4 +491,29 @@ function printHelp() {
         "      PUT <filepath>...      (POST) is an alias for PUT but does multipart\n" +
         "      \n"
     );
+}
+function processArgv(args) {
+    let argv = {_: []};
+    args.forEach(arg => {
+        switch (arg.charAt(0)) {
+            case '-':
+                switch (arg.charAt(1)) {
+                    case '-':
+                        const param = arg.slice(2);
+                        if (param.split('=').length === 2) {
+                            argv[param.split('=')[0]] = param.split('=')[1];
+                        } else {
+                            argv[param] = true;
+                        }
+                        break;
+                    default:
+                        //no single dash args implemented
+                        break;
+                }
+                break;
+            default:
+                argv._.push(arg);
+        }
+    });
+    return argv;
 }
