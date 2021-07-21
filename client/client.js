@@ -35,8 +35,6 @@ let method = 'GET';
 let fpath = null;
 let getIntervals = {};
 
-
-
 //testing
 let debug = false;
 if (argv.debug) {
@@ -101,9 +99,9 @@ if (argv._.length > 0) {
         const req = http.request(options);
         //init req event listeners
         const uuid = path.split('/').slice(-1)[0];
-        initRequest(req, method === 'GET', uuid, uuid);
+        initRequest(req, method === 'GET', { downloadFileName: uuid, serverUUID: uuid });
         //send request
-        sendRequest(req, method === 'POST', form);
+        sendRequest(req, method === 'POST', { form });
     }
 }
 
@@ -214,7 +212,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, k
         method: 'GET'
     }
     const req = http.request(options);
-    initRequest(req, true, fileUUID, fileUUID, false, false, key, iv);
+    initRequest(req, true, { downloadFileName: fileUUID, serverUUID: fileUUID }, false, false, key, iv);
     sendRequest(req);
 }
 function PUT(encrypt) {
@@ -260,7 +258,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
         return;
     }
     const req = http.request(options);
-    initRequest(req, false, undefined, undefined, false, true, key, iv);
+    initRequest(req, false, undefined, false, true, key, iv);
     putFile.on('error', err => {
         console.error(err);
     });
@@ -270,7 +268,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
         callback();
 
     });
-    sendRequest(req, true, putFile);
+    sendRequest(req, true, { putFile });
 }
 function POST(encrypt) {
     //check arg to see if it is a valid filePath
@@ -328,11 +326,11 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     options.headers = form.getHeaders();
     //create request
     const req = http.request(options);
-    initRequest(req, false, undefined, undefined, true, false, key, iv);
+    initRequest(req, false, undefined, true, false, key, iv);
     //send request
-    sendRequest(req, true, form);
+    sendRequest(req, true, { form });
 }
-function initRequest(req, GET = false, downloadFileName = 'downloadFile', serverUUID = '', POST = false, PUT = false, key = '', iv = '') {
+function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
     });
@@ -340,18 +338,18 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile', server
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
         if (GET) {
             //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
-            let path = `${getDownloadPath}${downloadFileName}`;
+            let path = `${getDownloadPath}${getOptions.downloadFileName}`;
             if (key != '') { path = `${tempFilePath}${key}` }
             if (debug) { console.log(`path: ${path}`) }
             if (!fs.existsSync(path.slice(0, -32))) { fs.mkdirSync(path.slice(0, -32), { recursive: true }) };
             let writeStream = fs.createWriteStream(path);
             writeStream.on('finish', () => {
                 if (key != '') {
-                    aesDecrypt(path, `${getDownloadPath}${downloadFileName}`, key, iv, () => {
+                    aesDecrypt(path, `${getDownloadPath}${getOptions.downloadFileName}`, key, iv, () => {
                         fs.rm(path, () => {
                             if (debug) { console.log(`temp file: ${path} removed`); }
                         });
-                        if (debug) { console.log(`file downloaded to ${getDownloadPath}${downloadFileName}`); }
+                        if (debug) { console.log(`file downloaded to ${getDownloadPath}${getOptions.downloadFileName}`); }
                     });
                 }
                 writeStream.close();
@@ -361,7 +359,7 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile', server
         res.on('data', d => {
             if (debug) { console.log('data: ', d.toString()); }
             if (GET) {
-                logDownload(serverUUID, key, iv, () => {
+                logDownload(getOptions.serverUUID, key, iv, () => {
                     if (debug) { console.log(`file download logged successfully`); }
                 });
             } else if (POST || PUT) {
@@ -450,10 +448,10 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from client
     });
     if (debug) { console.log("Sent " + message) }
 }
-function sendRequest(req, piped = false, readStream = undefined) {
+function sendRequest(req, piped = false, pipedOptions = { readStream = undefined }) {
     if (piped) {
         //request end is implicit after piping
-        readStream.pipe(req);
+        pipedOptions.readStream.pipe(req);
     } else {
         req.end();
     }
