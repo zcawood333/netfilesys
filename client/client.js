@@ -377,30 +377,22 @@ function logUpload(method = 'undefined', serverUUID, clientKey, iv, callback = (
     if (debug) {console.log(`uploadLogDir: ${uploadLogDir}`);}
     if (!fs.existsSync(uploadLogDir)) { fs.mkdirSync(uploadLogDir, { recursive: true }) };
     if (!fs.existsSync(uploadLogPath)) { //if upload log file doesn't exist, create it
-        fs.appendFile(uploadLogPath, uploadFileFormat.columns.join(',') + '\n', () => {
-            if (debug) {console.log('created upload log file: ' + uploadLogPath)}
-            const today = new Date(Date.now());
-            fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
-        });
-    } else {
-        const today = new Date(Date.now());
-        fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+        fs.appendFileSync(uploadLogPath, uploadFileFormat.columns.join(',') + '\n');
+        if (debug) {console.log('created upload log file: ' + uploadLogPath)}
     }
+    const today = new Date(Date.now());
+    fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
 }
 function logDownload(serverUUID, clientKey, iv, callback = () => { }) { 
     const downloadLogDir = downloadLogPath.split('/').slice(0, -1).join('/');
     if (debug) {console.log(`downloadLogDir: ${downloadLogDir}`);}
     if (!fs.existsSync(downloadLogDir)) { fs.mkdirSync(downloadLogDir, { recursive: true }) };
     if (!fs.existsSync(downloadLogPath)) {
-        fs.appendFile(downloadLogPath, downloadFileFormat.columns.join(',') + '\n', () => {
-            if (debug) {console.log('created download log file: ' + downloadLogPath);}
-            const today = new Date(Date.now());
-            fs.appendFile(downloadLogPath, `${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
-        });
-    } else {
-        const today = new Date(Date.now());
-        fs.appendFile(downloadLogPath, `${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+        fs.appendFileSync(downloadLogPath, downloadFileFormat.columns.join(',') + '\n');
+        if (debug) {console.log('created download log file: ' + downloadLogPath);}
     }
+    const today = new Date(Date.now());
+    fs.appendFile(downloadLogPath, `${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
 }
 function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => { }) {
     //decrypts file at old path using key, writes it to new file path
