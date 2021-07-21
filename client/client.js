@@ -99,7 +99,7 @@ if (argv._.length > 0) {
         }
         const req = http.request(options);
         //init req event listeners
-        initRequest(req);
+        initRequest(req, method === 'GET');
         //send request
         sendRequest(req, method === 'POST', form);
     }
@@ -298,7 +298,7 @@ function POST(encrypt) {
         }
     });
 }
-function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '') {
+function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '', callback = () => {}) {
     const options = {
         hostname: hostname,
         port: port,
@@ -320,6 +320,7 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     postFile.on('end', () => {
         if (debug) {console.log(`Sent POST request with path: ${filePath}`);}
         postFile.close();
+        callback();
     });
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
