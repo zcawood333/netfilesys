@@ -137,26 +137,16 @@ function uploadMultipartFile(req, res) {
         console.log('POST request body: ', req.body);
         console.log('Files: ', req.files);
     }
-    let fp;
-    let path;
-    let uuid;
-
     //pulled from example: https://github.com/richardgirges/express-fileupload/tree/master/example
     if (!req.files || Object.keys(req.files).length === 0) {
         if (debug) {console.log('No files to upload')};
         return res.status(400).send('No files were uploaded.');
     }
 
+    
+    const noDashesUUID = genUUID();
+    const path = createPath(noDashesUUID);
     fp = req.files.fileKey;
-    const ogUUID = uuidv4();
-    if (debug) {console.log(`uuid: ${ogUUID}`)};
-    const noDashesUUID = ogUUID.replace(/-/g,'');
-    if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
-    uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
-    if (debug) {console.log(`uuid turned into path: ${uuid}`)};
-    path = `${uploadsDir}${uuid}`;
-    if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
-
     fp.mv(path, err => {
         if (err) {
             if (debug) {console.log('file unable to be uploaded (1)', err)};
@@ -189,13 +179,8 @@ function uploadDirectFile(req, res) {
         console.log('PUT request body: ', req.body);
     }
     //generate and parse uuid/filepath
-    const ogUUID = uuidv4();
-    if (debug) {console.log(`uuid: ${ogUUID}`)};
-    const noDashesUUID = ogUUID.replace(/-/g,'');
-    if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
-    uuid = noDashesUUID.replace(/(.{3})/g,"$1/")
-    if (debug) {console.log(`uuid turned into path: ${uuid}`)};
-    const path = `${uploadsDir}${uuid}`;
+    const noDashesUUID = genUUID();
+    const path = createPath(noDashesUUID);
     if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
     //write req contents to the filepath
     const fileStream = fs.createWriteStream(path);
@@ -246,4 +231,16 @@ function uploadDirectFile(req, res) {
         });
     });
     req.pipe(fileStream); 
+}
+function genUUID() {
+    const ogUUID = uuidv4();
+    if (debug) {console.log(`uuid: ${ogUUID}`)};
+    const noDashesUUID = ogUUID.replace(/-/g,'');
+    if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
+    return noDashesUUID;
+}
+function createPath(noDashesUUID) {
+    const uuidPath = noDashesUUID.replace(/(.{3})/g,"$1/")
+    if (debug) {console.log(`uuid turned into path: ${uuidPath}`)};
+    return `${uploadsDir}${uuidPath}`;
 }
