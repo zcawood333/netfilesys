@@ -159,32 +159,40 @@ async function getIterThroughArgs(args) {
         }
     });
 }
-function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => {}) {
-    //decrypts file at old path using key, writes it to new file path
-    if (debug) {
-        console.log(`key: ${key}`);
-        console.log(`iv: ${iv}`);
-    }
-    //assumes the old file path exists
-    if (!fs.existsSync(unencryptedFilePath.slice(0,-32))) {fs.mkdirSync(unencryptedFilePath.slice(0,-32), {recursive: true})};
-    const readStream = fs.createReadStream(encryptedFilePath);
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    const writeStream = fs.createWriteStream(unencryptedFilePath);
-    readStream.on('error', err => {
-        console.error(err);
+async function initMulticastClient() {
+    multicastClient.on('listening', function () {
+        if (debug) {
+            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
+        }
+        multicastClient.setBroadcast(true);
+        multicastClient.setMulticastTTL(128); 
+        multicastClient.addMembership(multicastAddr);
     });
-    decipher.on('error', err => {
-        console.error(err);
+    multicastClient.on('message', (message, remote) => {   
+        if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
+        message = message.toString();
+        switch (message.charAt(0)) {
+            case 'h':
+                //validate uuid
+                let uuid = message.slice(1);
+                if (validUUID(uuid) && getIntervals[uuid]) {
+                    //record key and iv
+                    let key = getIntervals[uuid]['key'];
+                    let iv = getIntervals[uuid]['iv'];
+                    //clear uuid interval
+                    clearInterval(getIntervals[uuid]['interval']);
+                    delete getIntervals[uuid];
+                    //get file from server claiming to have it
+                    httpGet(remote.address, tcpServerPort, uuid, key, iv);
+                }
+                
+                break;
+            default:
+                break;
+        }
     });
-    writeStream.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('finish', () => {
-        readStream.close();
-        writeStream.close();
-        callback();
-    });
-    readStream.pipe(decipher).pipe(writeStream);
+    if (debug) console.log(`Starting multicastClient on port ${multicastServerPort}`);
+    multicastClient.bind(multicastClientPort);
 }
 function validUUID(val) {
     let newVal = val.replace(/-/g,'');
@@ -321,114 +329,6 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     //send request
     sendRequest(req, true, form);
 }
-function aesEncrypt(unencryptedFilePath, encryptedFilePath, key, iv, callback = () => {}) {
-    //encrypts file at old path using key, writes it to new file path
-    if (debug) {
-        console.log(`key: ${key}`);
-        console.log(`iv: ${iv}`);
-    }
-    //assumes the old file path exists
-    if (!fs.existsSync(encryptedFilePath.slice(0,-32))) {fs.mkdirSync(encryptedFilePath.slice(0,-32), {recursive: true})};
-    const readStream = fs.createReadStream(unencryptedFilePath);
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    const writeStream = fs.createWriteStream(encryptedFilePath);
-    readStream.on('error', err => {
-        console.error(err);
-    });
-    cipher.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('finish', () => {
-        readStream.close();
-        writeStream.close();
-        callback();
-    });
-    readStream.pipe(cipher).pipe(writeStream);
-}
-async function initMulticastClient() {
-    multicastClient.on('listening', function () {
-        if (debug) {
-            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
-        }
-        multicastClient.setBroadcast(true);
-        multicastClient.setMulticastTTL(128); 
-        multicastClient.addMembership(multicastAddr);
-    });
-    multicastClient.on('message', (message, remote) => {   
-        if (debug) {console.log('From: ' + remote.address + ':' + remote.port +' - ' + message)};
-        message = message.toString();
-        switch (message.charAt(0)) {
-            case 'h':
-                //validate uuid
-                let uuid = message.slice(1);
-                if (validUUID(uuid) && getIntervals[uuid]) {
-                    //record key and iv
-                    let key = getIntervals[uuid]['key'];
-                    let iv = getIntervals[uuid]['iv'];
-                    //clear uuid interval
-                    clearInterval(getIntervals[uuid]['interval']);
-                    delete getIntervals[uuid];
-                    //get file from server claiming to have it
-                    httpGet(remote.address, tcpServerPort, uuid, key, iv);
-                }
-                
-                break;
-            default:
-                break;
-        }
-    });
-    if (debug) console.log(`Starting multicastClient on port ${multicastServerPort}`);
-    multicastClient.bind(multicastClientPort);
-}
-function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastAddr) {
-    const message = new Buffer.from(msg);
-    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
-        if (close) {
-            multicastClient.close();
-            if (debug) {console.log('multicastClient closed')}
-        }
-    });
-    if (debug) {console.log("Sent " + message)}
-}
-function argsHandler() {
-    if (argv.hostname) {tcpServerHostname = argv.hostname};
-    if (argv.path) {path = argv.path};
-    if (argv.port) {tcpServerPort = argv.port};
-    if (argv.method) { 
-        switch (argv.method.toLowerCase()) {
-            case 'p':
-            case 'post':
-                method = 'POST';
-                break;
-            case 'g':
-            case 'get':
-                method = 'GET';
-                break;
-            default:
-                throw new Error(`Unknown method: ${argv.method}`);
-        }
-    }
-}
-function changeMethodToPost(options, form) {
-    options.method = 'POST';
-    if (!(argv.fpath)) {
-        throw new Error('POST request requires a file path');
-    }
-    fpath = argv.fpath;
-    const postFile = fs.createReadStream(fpath);
-    form.append('fileKey', postFile);
-    options.headers = form.getHeaders();
-}
-function logUpload(method = 'undefined', serverUUID, clientKey, iv, callback = () => {}) {
-    const uploadLogDir = uploadLogPath.split('/').slice(0,-1).join('/');
-    console.log(`uploadLogDir: ${uploadLogDir}`)
-    if (!fs.existsSync(uploadLogDir)) {fs.mkdirSync(uploadLogDir, {recursive: true})};
-    const today = new Date(Date.now());
-    fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
-}
 function initRequest(req, GET = false, downloadFileName = 'downloadFile', POST = false, PUT = false, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
@@ -466,6 +366,77 @@ function initRequest(req, GET = false, downloadFileName = 'downloadFile', POST =
         });
     });
 }
+function logUpload(method = 'undefined', serverUUID, clientKey, iv, callback = () => {}) {
+    const uploadLogDir = uploadLogPath.split('/').slice(0,-1).join('/');
+    console.log(`uploadLogDir: ${uploadLogDir}`)
+    if (!fs.existsSync(uploadLogDir)) {fs.mkdirSync(uploadLogDir, {recursive: true})};
+    const today = new Date(Date.now());
+    fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+}
+function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => {}) {
+    //decrypts file at old path using key, writes it to new file path
+    if (debug) {
+        console.log(`key: ${key}`);
+        console.log(`iv: ${iv}`);
+    }
+    //assumes the old file path exists
+    if (!fs.existsSync(unencryptedFilePath.slice(0,-32))) {fs.mkdirSync(unencryptedFilePath.slice(0,-32), {recursive: true})};
+    const readStream = fs.createReadStream(encryptedFilePath);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    const writeStream = fs.createWriteStream(unencryptedFilePath);
+    readStream.on('error', err => {
+        console.error(err);
+    });
+    decipher.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('finish', () => {
+        readStream.close();
+        writeStream.close();
+        callback();
+    });
+    readStream.pipe(decipher).pipe(writeStream);
+}
+function aesEncrypt(unencryptedFilePath, encryptedFilePath, key, iv, callback = () => {}) {
+    //encrypts file at old path using key, writes it to new file path
+    if (debug) {
+        console.log(`key: ${key}`);
+        console.log(`iv: ${iv}`);
+    }
+    //assumes the old file path exists
+    if (!fs.existsSync(encryptedFilePath.slice(0,-32))) {fs.mkdirSync(encryptedFilePath.slice(0,-32), {recursive: true})};
+    const readStream = fs.createReadStream(unencryptedFilePath);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const writeStream = fs.createWriteStream(encryptedFilePath);
+    readStream.on('error', err => {
+        console.error(err);
+    });
+    cipher.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('error', err => {
+        console.error(err);
+    });
+    writeStream.on('finish', () => {
+        readStream.close();
+        writeStream.close();
+        callback();
+    });
+    readStream.pipe(cipher).pipe(writeStream);
+}
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastAddr) {
+    const message = new Buffer.from(msg);
+    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
+        if (close) {
+            multicastClient.close();
+            if (debug) {console.log('multicastClient closed')}
+        }
+    });
+    if (debug) {console.log("Sent " + message)}
+}
 function sendRequest(req, piped = false, readStream = undefined) {
     if (piped) {
         //request end is implicit after piping
@@ -473,6 +444,35 @@ function sendRequest(req, piped = false, readStream = undefined) {
     } else {
         req.end();
     }
+}
+function argsHandler() {
+    if (argv.hostname) {tcpServerHostname = argv.hostname};
+    if (argv.path) {path = argv.path};
+    if (argv.port) {tcpServerPort = argv.port};
+    if (argv.method) { 
+        switch (argv.method.toLowerCase()) {
+            case 'p':
+            case 'post':
+                method = 'POST';
+                break;
+            case 'g':
+            case 'get':
+                method = 'GET';
+                break;
+            default:
+                throw new Error(`Unknown method: ${argv.method}`);
+        }
+    }
+}
+function changeMethodToPost(options, form) {
+    options.method = 'POST';
+    if (!(argv.fpath)) {
+        throw new Error('POST request requires a file path');
+    }
+    fpath = argv.fpath;
+    const postFile = fs.createReadStream(fpath);
+    form.append('fileKey', postFile);
+    options.headers = form.getHeaders();
 }
 function printHelp() {
     console.log("Usage: <command> <param>... [--debug] [--noEncryption]\n" +
