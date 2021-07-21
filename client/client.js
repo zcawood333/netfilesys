@@ -25,7 +25,9 @@ const getAttemptTimeout = 200; // milliseconds GET attempt will wait before tryi
 const getDownloadPath = `${__dirname}/downloads/`; //where files from GET are stored
 const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), filekeys (serverUUID + clientKey + clientIV), and the datetime
+const uploadFileFormat = {columns: ['method', 'encrypted', 'filekey', 'datetime']} //used to create log file if missing
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores filekeys (serverUUID + clientKey + clientIV) and the datetime
+const downloadFileFormat = {columns: ['uuid','datetime']} //used to create log file if missing
 
 //Defaults
 let tcpServerPort = 5000;
@@ -101,7 +103,7 @@ if (argv._.length > 0) {
         const uuid = path.split('/').slice(-1)[0];
         initRequest(req, method === 'GET', { downloadFileName: uuid, serverUUID: uuid });
         //send request
-        sendRequest(req, method === 'POST', { form });
+        sendRequest(req, method === 'POST', { readStream: form });
     }
 }
 
@@ -268,7 +270,7 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
         callback();
 
     });
-    sendRequest(req, true, { putFile });
+    sendRequest(req, true, { readStream: putFile });
 }
 function POST(encrypt) {
     //check arg to see if it is a valid filePath
@@ -328,7 +330,7 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     const req = http.request(options);
     initRequest(req, false, undefined, true, false, key, iv);
     //send request
-    sendRequest(req, true, { form });
+    sendRequest(req, true, { readStream: form });
 }
 function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, key = '', iv = '') {
     req.on('error', err => {
@@ -374,15 +376,31 @@ function logUpload(method = 'undefined', serverUUID, clientKey, iv, callback = (
     const uploadLogDir = uploadLogPath.split('/').slice(0, -1).join('/');
     if (debug) {console.log(`uploadLogDir: ${uploadLogDir}`);}
     if (!fs.existsSync(uploadLogDir)) { fs.mkdirSync(uploadLogDir, { recursive: true }) };
-    const today = new Date(Date.now());
-    fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+    if (!fs.existsSync(uploadLogPath)) { //if upload log file doesn't exist, create it
+        fs.appendFile(uploadLogPath, uploadFileFormat.columns.join(',') + '\n', () => {
+            if (debug) {console.log('created upload log file: ' + uploadLogPath)}
+            const today = new Date(Date.now());
+            fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+        });
+    } else {
+        const today = new Date(Date.now());
+        fs.appendFile(uploadLogPath, `${method},${clientKey != ''},${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+    }
 }
 function logDownload(serverUUID, clientKey, iv, callback = () => { }) { 
     const downloadLogDir = downloadLogPath.split('/').slice(0, -1).join('/');
     if (debug) {console.log(`downloadLogDir: ${downloadLogDir}`);}
     if (!fs.existsSync(downloadLogDir)) { fs.mkdirSync(downloadLogDir, { recursive: true }) };
-    const today = new Date(Date.now());
-    fs.appendFile(downloadLogPath, `${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+    if (!fs.existsSync(downloadLogPath)) {
+        fs.appendFile(downloadLogPath, downloadFileFormat.columns.join(',') + '\n', () => {
+            if (debug) {console.log('created download log file: ' + downloadLogPath);}
+            const today = new Date(Date.now());
+            fs.appendFile(downloadLogPath, `${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+        });
+    } else {
+        const today = new Date(Date.now());
+        fs.appendFile(downloadLogPath, `${serverUUID}${clientKey}${iv},${today.toISOString()}\n`, callback);
+    }
 }
 function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => { }) {
     //decrypts file at old path using key, writes it to new file path
@@ -448,7 +466,7 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from client
     });
     if (debug) { console.log("Sent " + message) }
 }
-function sendRequest(req, piped = false, pipedOptions = { readStream = undefined }) {
+function sendRequest(req, piped = false, pipedOptions = { readStream: undefined }) {
     if (piped) {
         //request end is implicit after piping
         pipedOptions.readStream.pipe(req);
