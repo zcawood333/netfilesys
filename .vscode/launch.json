@@ -24,6 +24,26 @@
             "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug"]
         },
         {
+            "name": "Client GET (output file)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug", "--outputFile=DownloadedFile"]
+        },
+        {
+            "name": "Client GET (bad output file)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug", "--outputFile=./../../DownloadedFile"]
+        },
+        {
             "name": "Client GET (file doesn't exist)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
@@ -98,6 +118,26 @@
             ],
             "type": "pwa-node",
             "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", "--debug"]
+        },
+        {
+            "name": "Client GET encrypted (output file)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", "--debug", "--outputFile=DownloadedFile"]
+        },
+        {
+            "name": "Client GET encrypted (bad output file)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", "--debug", "--outputFile=./../../DownloadedFile"]
         },
         {
             "name": "Client GET encrypted (file doesn't exist)",
