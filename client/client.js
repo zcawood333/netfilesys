@@ -207,7 +207,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, k
         method: 'GET'
     }
     const req = http.request(options);
-    let downloadFileName = fileUUID;
+    let downloadFileName = fileUUID + key + iv;
     if (argv.outputFile && 
         typeof argv.outputFile === "string" && 
         argv.outputFile.length > 0 &&
@@ -338,9 +338,10 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
     req.on('response', res => {
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
         if (GET) {
-            //save file under ./getDownloadPath/uuid, and if the path doesn't exist, create the necessary directories
-            let path = `${getDownloadPath}${getOptions.downloadFileName}`;
-            if (key != '') { path = `${tempFilePath}${key}` }
+            //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
+            let path;
+            if (key != '') { path = `${tempFilePath}${getOptions.downloadFileName}` }
+            else { path = `${getDownloadPath}${getOptions.downloadFileName}`}
             if (debug) { console.log(`path: ${path}`) }
             validateDirPath(path.split('/').slice(0,-1).join('/'));
             let writeStream = fs.createWriteStream(path);
@@ -402,7 +403,8 @@ function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = 
         console.log(`iv: ${iv}`);
     }
     //assumes the old file path exists
-    if (!fs.existsSync(unencryptedFilePath.slice(0, -32))) { fs.mkdirSync(unencryptedFilePath.slice(0, -32), { recursive: true }) };
+    const unencryptedFileDir = unencryptedFilePath.split('/').slice(0, -1).join('/');
+    if (!fs.existsSync(unencryptedFileDir)) { fs.mkdirSync(unencryptedFileDir, { recursive: true }) };
     const readStream = fs.createReadStream(encryptedFilePath);
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
     const writeStream = fs.createWriteStream(unencryptedFilePath);
@@ -429,7 +431,8 @@ function aesEncrypt(unencryptedFilePath, encryptedFilePath, key, iv, callback = 
         console.log(`iv: ${iv}`);
     }
     //assumes the old file path exists
-    if (!fs.existsSync(encryptedFilePath.slice(0, -32))) { fs.mkdirSync(encryptedFilePath.slice(0, -32), { recursive: true }) };
+    const encryptedFileDir = encryptedFilePath.split('/').slice(0, -1).join('/');
+    if (!fs.existsSync(encryptedFileDir)) { fs.mkdirSync(encryptedFileDir, { recursive: true }) };
     const readStream = fs.createReadStream(unencryptedFilePath);
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
     const writeStream = fs.createWriteStream(encryptedFilePath);
