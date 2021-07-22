@@ -20,6 +20,7 @@ const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encry
 const uploadLogFormat = {columns: ['method', 'encrypted', 'filekey', 'datetime']} //used to create log file if missing
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores filekeys (serverUUID + clientKey + clientIV) and the datetime
 const downloadLogFormat = {columns: ['uuid','datetime']} //used to create log file if missing
+const maxFileLengthBytes = 255;
 
 //Defaults
 let tcpServerPort = 5000;
@@ -206,7 +207,13 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, k
         method: 'GET'
     }
     const req = http.request(options);
-    initRequest(req, true, { downloadFileName: fileUUID, serverUUID: fileUUID }, false, false, key, iv);
+    let downloadFileName = fileUUID;
+    if (argv.outputFile && 
+        typeof argv.outputFile === "string" && 
+        argv.outputFile.length > 0 &&
+        !argv.outputFile.includes('.') &&
+        Buffer.byteLength(argv.outputFile) < maxFileLengthBytes) {downloadFileName = argv.outputFile}
+    initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID }, false, false, key, iv);
     sendRequest(req);
 }
 function PUT(encrypt) {
@@ -335,7 +342,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
             let path = `${getDownloadPath}${getOptions.downloadFileName}`;
             if (key != '') { path = `${tempFilePath}${key}` }
             if (debug) { console.log(`path: ${path}`) }
-            if (!fs.existsSync(path.slice(0, -32))) { fs.mkdirSync(path.slice(0, -32), { recursive: true }) };
+            validateDirPath(path.split('/').slice(0,-1).join('/'));
             let writeStream = fs.createWriteStream(path);
             writeStream.on('finish', () => {
                 if (key != '') {
@@ -347,7 +354,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
                     });
                 }
                 writeStream.close();
-            })
+            });
             res.pipe(writeStream);
         }
         res.on('data', d => {
@@ -376,10 +383,16 @@ function logDownload(serverUUID, clientKey, iv, callback = () => { }) {
 }
 function validateLogFile(path, format) {
     const logDir = path.split('/').slice(0, -1).join('/');
-    if (!fs.existsSync(logDir)) {fs.mkdirSync(logDir, { recursive: true });}
+    validateDirPath(logDir);
     if (!fs.existsSync(path)) {
         fs.appendFileSync(path, format.columns.join(',') + '\n');
         console.log('created log file: ' + path);
+    }
+}
+function validateDirPath(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        if (debug) {console.log('created dir path: ' + dirPath);}
     }
 }
 function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => { }) {
@@ -487,7 +500,7 @@ function printHelp() {
     console.log("Usage: <command> <param>... [--debug] [--noEncryption]\n" +
         " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
         "    command = GET | PUT | POST\n" +
-        "      GET <filekey>...\n" + //filekey will contain uuid and aes key and iv
+        "      GET <filekey>... [--outputFile=fileName]\n" + //filekey will contain uuid and aes key and iv
         "      PUT <filepath>...      (POST) is an alias for PUT but does multipart\n" +
         "      \n"
     );
