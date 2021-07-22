@@ -30,9 +30,8 @@ app.get('/exist', (req, res) => {
 
 app.get('/download/:uuid', (req, res) => {
     if (debug) {console.log('GET request: ', req.params)};
-    let parsedUUIDPath = req.params.uuid;
-    parsedUUIDPath = parsedUUIDPath.replace(/-/g,'').replace(/(.{3})/g, "$1/");
-    let path = `${uploadsDir}${parsedUUIDPath}`;
+    const parsedUUIDPath = req.params.uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    const path = `${uploadsDir}${parsedUUIDPath}`;
     
     if (debug) {console.log(`path: ${path}`)};
 
@@ -54,7 +53,7 @@ app.get('/download/:uuid', (req, res) => {
                         } else {
                             console.log(data);
                             //need to slice to -2 because there is a new line character after last entry
-                            let newData = data.toString().split('\n').slice(0,-2).join('\n') + '\n';
+                            const newData = data.toString().split('\n').slice(0,-2).join('\n') + '\n';
                             fs.writeFile(downloadLogPath, newData, err => {
                                 if (err) {
                                     if (debug) {console.log('download log file unable to be written to; it may now be corrupted')};
@@ -127,9 +126,9 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from server
     if (debug) {console.log("Sent " + message)}
 }
 function multicastGet(message, remote) {
-    let uuid = message.toString().slice(1);
+    const uuid = message.toString().slice(1);
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
-    let path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    const path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (fs.existsSync(path)) {
         sendMulticastMsg('h' + uuid, false, undefined, remote.address);
     }
