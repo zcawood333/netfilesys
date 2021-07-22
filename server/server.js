@@ -149,6 +149,7 @@ function uploadMultipartFile(req, res) {
     
     const noDashesUUID = genUUID();
     const path = createPath(noDashesUUID);
+    validateDirPath(path.slice(0,-2));
     fp = req.files.fileKey;
     fp.mv(path, err => {
         if (err) {
@@ -185,8 +186,7 @@ function uploadDirectFile(req, res) {
     //generate and parse uuid/filepath
     const noDashesUUID = genUUID();
     const path = createPath(noDashesUUID);
-    if (!fs.existsSync(path.slice(0,-2))) {fs.mkdirSync(path.slice(0,-2), {recursive: true})};
-    //write req contents to the filepath
+    validateDirPath(path.slice(0,-2));    //write req contents to the filepath
     const fileStream = fs.createWriteStream(path);
     fileStream.on('error', err => {
         if (err) {
@@ -251,9 +251,12 @@ function createPath(noDashesUUID) {
 }
 function validateLogFile(path, format) {
     const logDir = path.split('/').slice(0, -1).join('/');
-    if (!fs.existsSync(logDir)) {fs.mkdirSync(logDir, { recursive: true });}
+    validateDirPath(logDir);
     if (!fs.existsSync(path)) {
         fs.appendFileSync(path, format.columns.join(',') + '\n');
         console.log('created log file: ' + path);
     }
+}
+function validateDirPath(dirPath) {
+    if (!fs.existsSync(dirPath)) {fs.mkdirSync(dirPath, { recursive: true })}
 }
