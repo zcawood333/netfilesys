@@ -254,9 +254,12 @@ function validateLogFile(path, format) {
     validateDirPath(logDir);
     if (!fs.existsSync(path)) {
         fs.appendFileSync(path, format.columns.join(',') + '\n');
-        console.log('created log file: ' + path);
+        if (debug) {console.log('created log file: ' + path);}
     }
 }
 function validateDirPath(dirPath) {
-    if (!fs.existsSync(dirPath)) {fs.mkdirSync(dirPath, { recursive: true })}
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        if (debug) {console.log('created dir path: ' + dirPath);}
+    }
 }
