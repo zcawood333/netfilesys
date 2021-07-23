@@ -11,7 +11,8 @@ const multicastPort = 5001;
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const tcpAddr = '0.0.0.0';
-const tcpPort = 5000;
+const tcpPort = 0;
+const backlog = 5;
 const uploadsDir = `${__dirname}/uploads/`;
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
 const uploadLogFormat = {columns: ['method','filename','uuid','datetime']}
@@ -20,6 +21,9 @@ const downloadLogFormat = {columns: ['uuid','datetime']}
 
 //testing variables
 const debug = true;
+
+//Defaults
+let tcpBoundPort = undefined;
 
 //MAIN CODE
 app.use(fileUpload());
@@ -89,10 +93,12 @@ app.post('/upload', (req, res) => {
 
 //start both tcp and udp server
 if (debug) console.log(`Starting http based server on ${tcpAddr}:${tcpPort}`);
-app.listen(tcpPort, tcpAddr);
+const listener = app.listen(tcpPort, tcpAddr, backlog, () => {
+    if (debug) {console.log(`Starting http based server: `, listener.address())}
+    tcpBoundPort = listener.address().port;
+});
 if (debug) console.log(`Starting multicastServer on port ${multicastPort}`);
 initMulticastServer();
-console.log(`current directory: ${__dirname}`);
 
 //FUNCTIONS
 function initMulticastServer() {
@@ -137,7 +143,7 @@ function multicastGet(message, remote) {
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
     const path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (fs.existsSync(path)) {
-        sendMulticastMsg('h' + uuid, false, multicastPort, multicastAddr);
+        sendMulticastMsg('h' + uuid + ':' + tcpBoundPort, false, multicastPort, multicastAddr);
     }
 }
 function uploadMultipartFile(req, res) {
