@@ -7,10 +7,9 @@ const { v4: uuidv4 } = require('uuid');
 const formData = require('form-data');
 const fs = require('fs');
 const dgram = require('dgram');
-const multicastClient = dgram.createSocket('udp4');
+const multicastClient = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
-const multicastServerPort = 5002;
-const multicastClientPort = 5001;
+const multicastPort = 5001;
 const { exit } = require('process');
 const numGetAttempts = 8; // number of attempts to GET a file
 const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
@@ -155,9 +154,14 @@ async function getIterThroughArgs(args) {
     });
 }
 async function initMulticastClient() {
-    multicastClient.on('listening', function () {
+    multicastClient.on('error', err => {
+        console.error(err);
+    })
+    multicastClient.on('listening', err => {
+        if (err) {console.error(err); return}
         if (debug) {
             console.log(`multicastClient listening on multicast address ${multicastAddr}`);
+            console.log('multicastClient bound to address: ', multicastClient.address());
         }
         multicastClient.setBroadcast(true);
         multicastClient.setMulticastTTL(128);
@@ -186,8 +190,8 @@ async function initMulticastClient() {
                 break;
         }
     });
-    if (debug) console.log(`Starting multicastClient on port ${multicastServerPort}`);
-    multicastClient.bind(multicastClientPort);
+    if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
+    multicastClient.bind(multicastPort, '192.168.1.43');
 }
 function validUUID(val) {
     let newVal = val.replace(/-/g, '');
@@ -452,7 +456,7 @@ function aesEncrypt(unencryptedFilePath, encryptedFilePath, key, iv, callback = 
     });
     readStream.pipe(cipher).pipe(writeStream);
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastServerPort, targetAddr = multicastAddr) {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
@@ -460,7 +464,7 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from client
             if (debug) { console.log('multicastClient closed') }
         }
     });
-    if (debug) { console.log("Sent " + message) }
+    if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
 }
 function sendRequest(req, piped = false, pipedOptions = { readStream: undefined }) {
     if (piped) {

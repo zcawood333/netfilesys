@@ -3,10 +3,9 @@
 const express = require('express');
 const app = express();
 const dgram = require('dgram');
-const multicastServer = dgram.createSocket('udp4');
+const multicastServer = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
-const multicastServerPort = 5002;
-const multicastClientPort = 5001;
+const multicastPort = 5001;
 const { v4: uuidv4 } = require('uuid');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
@@ -89,15 +88,20 @@ app.post('/upload', (req, res) => {
 //start both tcp and udp server
 if (debug) console.log(`Starting http based server on ${tcpAddr}:${tcpPort}`);
 app.listen(tcpPort, tcpAddr);
-if (debug) console.log(`Starting multicastServer on port ${multicastServerPort}`);
+if (debug) console.log(`Starting multicastServer on port ${multicastPort}`);
 initMulticastServer();
 console.log(`current directory: ${__dirname}`);
 
 //FUNCTIONS
 function initMulticastServer() {
-    multicastServer.on('listening', function () {
+    multicastServer.on('error', err => {
+        console.error(err);
+    })
+    multicastServer.on('listening', err => {
+        if (err) {console.error(err); return; }
         if (debug) {
-            console.log(`multicastServer listening on multicast address ${multicastAddr}`)
+            console.log(`multicastServer listening on multicast address ${multicastAddr}`);
+            console.log('multicastServer bound to address: ', multicastServer.address());
         }
         multicastServer.setBroadcast(true);
         multicastServer.setMulticastTTL(128); 
@@ -113,9 +117,10 @@ function initMulticastServer() {
                 break;
         }
     });
-    multicastServer.bind(multicastServerPort);
+    multicastServer.bind(multicastPort, '192.168.1.43');
+    
 }
-function sendMulticastMsg(msg = 'this is a sample multicast message (from server)', close = false, targetPort = multicastClientPort, targetAddr = multicastAddr) {
+function sendMulticastMsg(msg = 'this is a sample multicast message (from server)', close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastServer.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
@@ -123,14 +128,14 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from server
             if (debug) {console.log('multicastServer closed')}
         }
     });
-    if (debug) {console.log("Sent " + message)}
+    if (debug) {console.log("Sent " + message + " to " + targetAddr + ":" + targetPort)}
 }
 function multicastGet(message, remote) {
     const uuid = message.toString().slice(1);
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
     const path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (fs.existsSync(path)) {
-        sendMulticastMsg('h' + uuid, false, undefined, remote.address);
+        sendMulticastMsg('h' + uuid, false, multicastPort, multicastAddr);
     }
 }
 function uploadMultipartFile(req, res) {
