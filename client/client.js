@@ -105,9 +105,9 @@ async function GET() {
         throw new Error('Usage: GET <filekey> <filekey2> ...');
     }
     await initMulticastClient();
-    let args = argv._.slice(1);
+    const args = argv._.slice(1);
     await getIterThroughArgs(args);
-    let closeClient = setInterval(() => {
+    const closeClient = setInterval(() => {
         if (Object.keys(getIntervals).length === 0) {
             multicastClient.close();
             clearInterval(closeClient);
@@ -120,9 +120,9 @@ async function getIterThroughArgs(args) {
         let key = '';
         let iv = '';
         if (arg.length > 32) {
-            let filekey = arg;
+            const filekey = arg;
             arg = filekey.substr(0, 32);
-            let keyIV = filekey.slice(32);
+            const keyIV = filekey.slice(32);
             key = keyIV.substr(0, 32);
             iv = keyIV.slice(32);
             if (!validUUID(key)) {
@@ -131,7 +131,7 @@ async function getIterThroughArgs(args) {
             }
         }
         if (validUUID(arg)) {
-            let uuid = arg.replace(/-/g, '');
+            const uuid = arg.replace(/-/g, '');
             getIntervals[uuid] = {
                 interval: setInterval(() => {
                     if (getIntervals[uuid]['attempts'] < numGetAttempts) {
@@ -196,10 +196,10 @@ async function initMulticastClient() {
     multicastClient.bind(multicastPort, '192.168.1.43');
 }
 function validUUID(val) {
-    let newVal = val.replace(/-/g, '');
+    const newVal = val.replace(/-/g, '');
     if (newVal.length !== 32) { return false }
     for (let i = 0; i < newVal.length; i++) {
-        let char = newVal.charAt(i);
+        const char = newVal.charAt(i);
         if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) { continue }
         return false;
     }
@@ -227,9 +227,9 @@ function PUT(encrypt) {
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
     }
-    let args = argv._.slice(1);
+    const args = argv._.slice(1);
     args.forEach(arg => {
-        let filePath = arg;
+        const filePath = arg;
         if (fs.existsSync(filePath)) {
             if (encrypt) {
                 const uuid = uuidv4().replace(/-/g, '');
@@ -282,9 +282,9 @@ function POST(encrypt) {
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
     }
-    let args = argv._.slice(1);
+    const args = argv._.slice(1);
     args.forEach(arg => {
-        let filePath = arg;
+        const filePath = arg;
         if (fs.existsSync(filePath)) {
             if (encrypt) {
                 const uuid = uuidv4().replace(/-/g, '');
@@ -350,7 +350,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
             else { path = `${getDownloadPath}${getOptions.downloadFileName}`}
             if (debug) { console.log(`path: ${path}`) }
             validateDirPath(path.split('/').slice(0,-1).join('/'));
-            let writeStream = fs.createWriteStream(path);
+            const writeStream = fs.createWriteStream(path);
             writeStream.on('finish', () => {
                 if (key != '') {
                     aesDecrypt(path, `${getDownloadPath}${getOptions.downloadFileName}`, key, iv, () => {
