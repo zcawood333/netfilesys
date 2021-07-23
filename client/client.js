@@ -173,16 +173,18 @@ async function initMulticastClient() {
         switch (message.charAt(0)) {
             case 'h':
                 //validate uuid
-                let uuid = message.slice(1);
+                const uuidAndPort = message.slice(1).split(':');
+                const uuid = uuidAndPort[0];
+                const port = uuidAndPort[1];
                 if (validUUID(uuid) && getIntervals[uuid]) {
                     //record key and iv
-                    let key = getIntervals[uuid]['key'];
-                    let iv = getIntervals[uuid]['iv'];
+                    const key = getIntervals[uuid]['key'];
+                    const iv = getIntervals[uuid]['iv'];
                     //clear uuid interval
                     clearInterval(getIntervals[uuid]['interval']);
                     delete getIntervals[uuid];
                     //get file from server claiming to have it
-                    httpGet(remote.address, tcpServerPort, uuid, key, iv);
+                    httpGet(remote.address, port, uuid, key, iv);
                 }
 
                 break;
@@ -218,7 +220,7 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, k
         !argv.outputFile.includes('.') &&
         Buffer.byteLength(argv.outputFile) < maxFileLengthBytes) {downloadFileName = argv.outputFile}
     initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID }, false, false, key, iv);
-    sendRequest(req);
+    sendRequest(req, undefined, undefined, port);
 }
 function PUT(encrypt) {
     //check arg to see if it is a valid filePath
@@ -466,13 +468,14 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from client
     });
     if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
 }
-function sendRequest(req, piped = false, pipedOptions = { readStream: undefined }) {
+function sendRequest(req, piped = false, pipedOptions = { readStream: undefined }, port = 'unknown') {
     if (piped) {
         //request end is implicit after piping
         pipedOptions.readStream.pipe(req);
     } else {
         req.end();
     }
+    if (debug) {console.log("Sent ", req.method, " request to ", req.host, ":", port)}
 }
 function argsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
