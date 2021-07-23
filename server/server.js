@@ -2,12 +2,13 @@
 
 const express = require('express');
 const app = express();
+const fileUpload = require('express-fileupload');
+const errorHandler = require('errorhandler')
 const dgram = require('dgram');
 const multicastServer = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
 const multicastPort = 5001;
 const { v4: uuidv4 } = require('uuid');
-const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const tcpAddr = '0.0.0.0';
 const tcpPort = 5000;
@@ -22,6 +23,7 @@ const debug = true;
 
 //MAIN CODE
 app.use(fileUpload());
+app.use(errorHandler());
 
 app.get('/exist', (req, res) => {
     res.send('Hello world\n');
