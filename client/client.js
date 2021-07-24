@@ -93,7 +93,7 @@ if (argv._.length > 0) {
         const uuid = path.split('/').slice(-1)[0];
         initRequest(req, method === 'GET', { downloadFileName: uuid, serverUUID: uuid });
         //send request
-        sendRequest(req, method === 'POST', { readStream: form });
+        sendRequest(req, method === 'POST', { readStream: form }, options.port);
     }
 }
 
@@ -234,31 +234,39 @@ function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, k
         callback();
 
     });
-    sendRequest(req, true, { readStream: putFile });
+    sendRequest(req, true, { readStream: putFile }, port);
 }
-function POST(encrypt) {
+async function POST() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
     }
+    await initMulticastClient(true);
     const args = argv._.slice(1);
+    await postIterThroughArgs(args);
+    closeMulticastClient(() => {return Object.keys(postIntervals).length === 0}, attemptTimeout);
+}
+async function postIterThroughArgs(args) {
     args.forEach(arg => {
         const filePath = arg;
         if (fs.existsSync(filePath)) {
-            if (encrypt) {
-                const uuid = uuidv4().replace(/-/g, '');
-                const iv = crypto.randomBytes(8).toString('hex');
-                const encryptedFilePath = `${tempFilePath}${uuid}`;
-                aesEncrypt(filePath, encryptedFilePath, uuid, iv, () => {
-                    httpPost(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv, () => {
-                        fs.rm(encryptedFilePath, () => {
-                            if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
-                        });
-                    });
-                });
-            } else {
-                httpPost(tcpServerHostname, tcpServerPort, filePath);
-            }
+            const size = fs.statSync(filePath).size + 8; //additional 8 to account for possible aes encryption padding
+            const uuid = uuidv4().replace(/-/g, '');
+            postIntervals[uuid] = {
+                interval: setInterval(() => {
+                    if (postIntervals[uuid]['attempts'] < numAttempts) {
+                        sendMulticastMsg('u' + uuid + ':' + size);
+                        postIntervals[uuid]['attempts']++;
+                    } else {
+                        if (debug) { console.log(`file with uuid: ${uuid} unable to be uploaded`); }
+                        if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
+                        clearInterval(postIntervals[uuid]['interval']);
+                        delete postIntervals[uuid];
+                    }
+                }, attemptTimeout),
+                attempts: 0,
+                filePath: filePath,
+            }   
         } else {
             if (debug) { console.log(`filePath: ${filePath} does not exist`); }
         }
@@ -294,9 +302,9 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     const req = http.request(options);
     initRequest(req, false, undefined, true, false, key, iv);
     //send request
-    sendRequest(req, true, { readStream: form });
+    sendRequest(req, true, { readStream: form }, port);
 }
-async function initMulticastClient() {
+async function initMulticastClient(post = false) {
     multicastClient.on('error', err => {
         console.error(err);
     })
@@ -331,26 +339,47 @@ async function initMulticastClient() {
                 }
                 break;
             case 's':
-                if (validUUID(uuid) && putIntervals[uuid]) {
-                    //record filepath
-                    const filePath = putIntervals[uuid]['filePath'];
-                    //clear uuid interval
-                    clearInterval(putIntervals[uuid]['interval']);
-                    delete putIntervals[uuid];
+                if (validUUID(uuid) && (putIntervals[uuid] || postIntervals[uuid])) {
+                    let filePath;
+                    if (post) {
+                        //record filepath
+                        filePath = postIntervals[uuid]['filePath'];
+                        //clear uuid interval
+                        clearInterval(postIntervals[uuid]['interval']);
+                        delete postIntervals[uuid];
+                    } else {
+                        //record filepath
+                        filePath = putIntervals[uuid]['filePath'];
+                        //clear uuid interval
+                        clearInterval(putIntervals[uuid]['interval']);
+                        delete putIntervals[uuid];
+                    }
                     //upload file to server claiming to have space
                     if (!argv.noEncryption) {
                         const uuidKey = uuidv4().replace(/-/g, '');
                         const iv = crypto.randomBytes(8).toString('hex');
                         const encryptedFilePath = `${tempFilePath}${uuidKey}`;
                         aesEncrypt(filePath, encryptedFilePath, uuidKey, iv, () => {
-                            httpPut(remote.address, port, encryptedFilePath, uuidKey, iv, () => {
-                                fs.rm(encryptedFilePath, () => {
-                                    if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
+                            if (post) {
+                                httpPost(remote.address, port, encryptedFilePath, uuidKey, iv, () => {
+                                    fs.rm(encryptedFilePath, () => {
+                                        if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
+                                    });
                                 });
-                            });
+                            } else {
+                                httpPut(remote.address, port, encryptedFilePath, uuidKey, iv, () => {
+                                    fs.rm(encryptedFilePath, () => {
+                                        if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
+                                    });
+                                });
+                            }
                         });
                     } else {
-                        httpPut(remote.address, port, filePath);
+                        if (post) {
+                            httpPost(remote.address, port, filePath);
+                        } else {
+                            httpPut(remote.address, port, filePath);
+                        }
                     }
                 }
                 break;
