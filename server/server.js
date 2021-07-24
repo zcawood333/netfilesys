@@ -3,6 +3,8 @@
 const express = require('express');
 const app = express();
 const fileUpload = require('express-fileupload');
+const diskusage = require('diskusage');
+const mountPoint = '/';
 const errorHandler = require('errorhandler')
 const dgram = require('dgram');
 const multicastServer = dgram.createSocket({type: 'udp4', reuseAddr: true});
@@ -121,6 +123,9 @@ function initMulticastServer() {
             case 'g':
                 multicastGet(message, remote);
                 break;
+            case 'u':
+                multicastPut(message, remote);
+                break;
             default:
                 break;
         }
@@ -144,6 +149,15 @@ function multicastGet(message, remote) {
     const path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (fs.existsSync(path)) {
         sendMulticastMsg('h' + uuid + ':' + tcpBoundPort, false, multicastPort, multicastAddr);
+    }
+}
+function multicastPut(message, remote) {
+    const uuidAndSize = message.toString().slice(1).split(':');
+    const uuid = uuidAndSize[0];
+    const size = uuidAndSize[1];
+    if (debug) {console.log(`parsed uuid: ${uuid}`)}
+    if (diskusage.checkSync(mountPoint).available > size) {
+        sendMulticastMsg('s' + uuid + ':' + tcpBoundPort, false, multicastPort, multicastAddr);
     }
 }
 function uploadMultipartFile(req, res) {
