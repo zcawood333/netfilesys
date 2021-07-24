@@ -11,8 +11,8 @@ const multicastClient = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
 const multicastPort = 5001;
 const { exit } = require('process');
-const numGetAttempts = 8; // number of attempts to GET a file
-const getAttemptTimeout = 200; // milliseconds GET attempt will wait before trying again
+const numAttempts = 8; // number of attempts to complete a command (send multicast message)
+const attemptTimeout = 200; // milliseconds attempt will wait before trying again
 const getDownloadPath = `${__dirname}/downloads/`; //where files from GET are stored
 const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), filekeys (serverUUID + clientKey + clientIV), and the datetime
@@ -28,6 +28,8 @@ let path = '';
 let method = 'GET';
 let fpath = null;
 let getIntervals = {};
+let putIntervals = {}; 
+let postIntervals = {};
 
 //testing
 let debug = false;
@@ -58,11 +60,7 @@ if (argv._.length > 0) {
             }
             break;
         case 'put':
-            if (argv.noEncryption) {
-                PUT(false);
-            } else {
-                PUT(true);
-            }
+            PUT();
             break;
         default:
             throw new Error(`Unrecognized command: ${argv._[0]}`)
@@ -107,12 +105,7 @@ async function GET() {
     await initMulticastClient();
     const args = argv._.slice(1);
     await getIterThroughArgs(args);
-    const closeClient = setInterval(() => {
-        if (Object.keys(getIntervals).length === 0) {
-            multicastClient.close();
-            clearInterval(closeClient);
-        }
-    }, getAttemptTimeout);
+    closeMulticastClient(() => {return Object.keys(getIntervals).length === 0}, attemptTimeout);
 }
 async function getIterThroughArgs(args) {
     args.forEach(arg => {
@@ -134,7 +127,7 @@ async function getIterThroughArgs(args) {
             const uuid = arg.replace(/-/g, '');
             getIntervals[uuid] = {
                 interval: setInterval(() => {
-                    if (getIntervals[uuid]['attempts'] < numGetAttempts) {
+                    if (getIntervals[uuid]['attempts'] < numAttempts) {
                         sendMulticastMsg('g' + uuid);
                         getIntervals[uuid]['attempts']++;
                     } else {
@@ -143,7 +136,7 @@ async function getIterThroughArgs(args) {
                         clearInterval(getIntervals[uuid]['interval']);
                         delete getIntervals[uuid];
                     }
-                }, getAttemptTimeout),
+                }, attemptTimeout),
                 attempts: 0,
                 key: key,
                 iv: iv,
@@ -152,48 +145,6 @@ async function getIterThroughArgs(args) {
             if (debug) { console.log(`arg: ${arg} is not a valid uuid`); }
         }
     });
-}
-async function initMulticastClient() {
-    multicastClient.on('error', err => {
-        console.error(err);
-    })
-    multicastClient.on('listening', err => {
-        if (err) {console.error(err); return}
-        if (debug) {
-            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
-            console.log('multicastClient bound to address: ', multicastClient.address());
-        }
-        multicastClient.setBroadcast(true);
-        multicastClient.setMulticastTTL(128);
-        multicastClient.addMembership(multicastAddr);
-    });
-    multicastClient.on('message', (message, remote) => {
-        if (debug) { console.log('From: ' + remote.address + ':' + remote.port + ' - ' + message) };
-        message = message.toString();
-        switch (message.charAt(0)) {
-            case 'h':
-                //validate uuid
-                const uuidAndPort = message.slice(1).split(':');
-                const uuid = uuidAndPort[0];
-                const port = uuidAndPort[1];
-                if (validUUID(uuid) && getIntervals[uuid]) {
-                    //record key and iv
-                    const key = getIntervals[uuid]['key'];
-                    const iv = getIntervals[uuid]['iv'];
-                    //clear uuid interval
-                    clearInterval(getIntervals[uuid]['interval']);
-                    delete getIntervals[uuid];
-                    //get file from server claiming to have it
-                    httpGet(remote.address, port, uuid, key, iv);
-                }
-
-                break;
-            default:
-                break;
-        }
-    });
-    if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
-    multicastClient.bind(multicastPort, '192.168.1.43');
 }
 function validUUID(val) {
     const newVal = val.replace(/-/g, '');
@@ -222,29 +173,37 @@ function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, k
     initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID }, false, false, key, iv);
     sendRequest(req, undefined, undefined, port);
 }
-function PUT(encrypt) {
+async function PUT() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
     }
+    await initMulticastClient();
     const args = argv._.slice(1);
+    await putIterThroughArgs(args);
+    closeMulticastClient(() => {return Object.keys(putIntervals).length === 0}, attemptTimeout);
+}
+async function putIterThroughArgs(args) {
     args.forEach(arg => {
         const filePath = arg;
         if (fs.existsSync(filePath)) {
-            if (encrypt) {
-                const uuid = uuidv4().replace(/-/g, '');
-                const iv = crypto.randomBytes(8).toString('hex');
-                const encryptedFilePath = `${tempFilePath}${uuid}`;
-                aesEncrypt(filePath, encryptedFilePath, uuid, iv, () => {
-                    httpPut(tcpServerHostname, tcpServerPort, encryptedFilePath, uuid, iv, () => {
-                        fs.rm(encryptedFilePath, () => {
-                            if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
-                        });
-                    });
-                });
-            } else {
-                httpPut(tcpServerHostname, tcpServerPort, filePath);
-            }
+            const size = fs.statSync(filePath).size + 8; //additional 8 to account for possible aes encryption padding
+            const uuid = uuidv4().replace(/-/g, '');
+            putIntervals[uuid] = {
+                interval: setInterval(() => {
+                    if (putIntervals[uuid]['attempts'] < numAttempts) {
+                        sendMulticastMsg('u' + uuid + ':' + size);
+                        putIntervals[uuid]['attempts']++;
+                    } else {
+                        if (debug) { console.log(`file with uuid: ${uuid} unable to be uploaded`); }
+                        if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
+                        clearInterval(putIntervals[uuid]['interval']);
+                        delete putIntervals[uuid];
+                    }
+                }, attemptTimeout),
+                attempts: 0,
+                filePath: filePath,
+            }            
         } else {
             if (debug) { console.log(`filepath: ${filePath} does not exist`); }
         }
@@ -336,6 +295,71 @@ function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, 
     initRequest(req, false, undefined, true, false, key, iv);
     //send request
     sendRequest(req, true, { readStream: form });
+}
+async function initMulticastClient() {
+    multicastClient.on('error', err => {
+        console.error(err);
+    })
+    multicastClient.on('listening', err => {
+        if (err) {console.error(err); return}
+        if (debug) {
+            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
+            console.log('multicastClient bound to address: ', multicastClient.address());
+        }
+        multicastClient.setBroadcast(true);
+        multicastClient.setMulticastTTL(128);
+        multicastClient.addMembership(multicastAddr);
+    });
+    multicastClient.on('message', (message, remote) => {
+        if (debug) { console.log('From: ' + remote.address + ':' + remote.port + ' - ' + message) };
+        message = message.toString();
+        const uuidAndPort = message.slice(1).split(':');
+        const uuid = uuidAndPort[0];
+        const port = uuidAndPort[1];
+        switch (message.charAt(0)) {
+            case 'h':
+                //validate uuid
+                if (validUUID(uuid) && getIntervals[uuid]) {
+                    //record key and iv
+                    const key = getIntervals[uuid]['key'];
+                    const iv = getIntervals[uuid]['iv'];
+                    //clear uuid interval
+                    clearInterval(getIntervals[uuid]['interval']);
+                    delete getIntervals[uuid];
+                    //get file from server claiming to have it
+                    httpGet(remote.address, port, uuid, key, iv);
+                }
+                break;
+            case 's':
+                if (validUUID(uuid) && putIntervals[uuid]) {
+                    //record filepath
+                    const filePath = putIntervals[uuid]['filePath'];
+                    //clear uuid interval
+                    clearInterval(putIntervals[uuid]['interval']);
+                    delete putIntervals[uuid];
+                    //upload file to server claiming to have space
+                    if (!argv.noEncryption) {
+                        const uuidKey = uuidv4().replace(/-/g, '');
+                        const iv = crypto.randomBytes(8).toString('hex');
+                        const encryptedFilePath = `${tempFilePath}${uuidKey}`;
+                        aesEncrypt(filePath, encryptedFilePath, uuidKey, iv, () => {
+                            httpPut(remote.address, port, encryptedFilePath, uuidKey, iv, () => {
+                                fs.rm(encryptedFilePath, () => {
+                                    if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
+                                });
+                            });
+                        });
+                    } else {
+                        httpPut(remote.address, port, filePath);
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    });
+    if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
+    multicastClient.bind(multicastPort, '192.168.1.43');
 }
 function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, key = '', iv = '') {
     req.on('error', err => {
@@ -476,6 +500,14 @@ function sendRequest(req, piped = false, pipedOptions = { readStream: undefined 
         req.end();
     }
     if (debug) {console.log("Sent ", req.method, " request to ", req.host, ":", port)}
+}
+function closeMulticastClient(checkFunction = () => {return true}, timeInterval = attemptTimeout) {
+    const closeClient = setInterval(() => {
+        if (checkFunction()) {
+            multicastClient.close();
+            clearInterval(closeClient);
+        }
+    }, timeInterval);
 }
 function argsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
