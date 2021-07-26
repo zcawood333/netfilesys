@@ -9,6 +9,7 @@ const fs = require('fs');
 const dgram = require('dgram');
 const multicastClient = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
+const ipAddr = '192.168.1.43';
 const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempt will wait before trying again
@@ -23,6 +24,7 @@ const maxFileLengthBytes = 255;
 //command based implementation defaults
 let intervals = {};
 let multicastPort = 5001;
+
 
 //flag-based implementation defaults
 let tcpServerPort = 5000;
@@ -49,16 +51,13 @@ if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help
 
 if (argv._.length > 0) {
     //command based
+    commandArgsHandler();
     switch (argv._[0].toLowerCase()) {
         case 'get':
             GET();
             break;
         case 'post':
-            if (argv.noEncryption) {
-                POST(false);
-            } else {
-                POST(true);
-            }
+            POST();
             break;
         case 'put':
             PUT();
@@ -71,7 +70,7 @@ if (argv._.length > 0) {
     if (argv.multicast) {
         //send a multicast message and close the connection
         initMulticastClient();
-        sendMulticastMsg(argv.multicast, true);
+        sendMulticastMsg(argv.multicast, true, argv.port, argv.hostname);
     } else {
         //send a http request
         //argv handling and error checking
@@ -355,7 +354,7 @@ async function initMulticastClient(post = false) {
         }
     });
     if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
-    multicastClient.bind(multicastPort, '192.168.1.43');
+    multicastClient.bind(multicastPort, ipAddr);
 }
 function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, key = '', iv = '') {
     req.on('error', err => {
@@ -505,6 +504,9 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
         }
     }, timeInterval);
 }
+function commandArgsHandler() {
+    if (argv.port) {multicastPort = argv.port}
+}
 function flagArgsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
     if (argv.path) { path = argv.path };
@@ -535,12 +537,21 @@ function changeMethodToPost(options, form) {
     options.headers = form.getHeaders();
 }
 function printHelp() {
-    console.log("Usage: <command> <param>... [--debug] [--noEncryption]\n" +
-        " --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n" +
-        "    command = GET | PUT | POST\n" +
-        "      GET <filekey>... [--outputFile=fileName]\n" + //filekey will contain uuid and aes key and iv
-        "      PUT <filepath>...      (POST) is an alias for PUT but does multipart\n" +
-        "      \n"
+    console.log("Usage: <command> <param>... [--port=portNumber] [--debug]\n" +
+                "      command = GET | PUT | POST\n" +
+                "      param = filekey | filepath\n" +
+                "      port: port multicast client binds and sends to\n" +
+                "      debug: displays debugging output\n" +
+                "\n" +
+                "      GET <filekey>... [--outputFile=fileName]\n" + //filekey will contain uuid and aes key and iv
+                "      filekey = string logged after PUT or POST\n" +
+                "      outputFile: downloaded file save name\n" +
+                "\n" +
+                "      PUT <filepath>... [--noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
+                "      filepath = path to file for uploading\n" +
+                "      noEncryption: uploads unencrypted file contents\n" +
+                "\n" +
+                "Deprecated usage: --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n"
     );
 }
 function processArgv(args) {
