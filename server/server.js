@@ -1,5 +1,6 @@
 //server.js
 
+const argv = processArgv(process.argv.slice(2));
 const express = require('express');
 const app = express();
 const fileUpload = require('express-fileupload');
@@ -9,11 +10,9 @@ const errorHandler = require('errorhandler')
 const dgram = require('dgram');
 const multicastServer = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
-const multicastPort = 5001;
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const ipAddr = '192.168.1.43';
-const tcpPort = 0;
 const backlog = 5;
 const uploadsDir = `${__dirname}/uploads/`;
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
@@ -25,7 +24,12 @@ const downloadLogFormat = {columns: ['uuid','datetime']}
 const debug = true;
 
 //Defaults
-let tcpBoundPort = undefined;
+let multicastPort = 5001;
+let httpPort = 0;
+let httpBoundPort = undefined;
+
+//change defaults according to argv
+argsHandler();
 
 //MAIN CODE
 app.use(fileUpload());
@@ -93,11 +97,11 @@ app.post('/upload', (req, res) => {
     uploadMultipartFile(req, res);
 });
 
-//start both tcp and udp server
-if (debug) console.log(`Starting http based server on ${ipAddr}:${tcpPort}`);
-const listener = app.listen(tcpPort, ipAddr, backlog, () => {
+//start both http and udp server
+if (debug) console.log(`Starting http based server on ${ipAddr}:${httpPort}`);
+const listener = app.listen(httpPort, ipAddr, backlog, () => {
     if (debug) {console.log(`Starting http based server: `, listener.address())}
-    tcpBoundPort = listener.address().port;
+    httpBoundPort = listener.address().port;
 });
 if (debug) console.log(`Starting multicastServer on port ${multicastPort}`);
 initMulticastServer();
@@ -148,7 +152,7 @@ function multicastGet(message, remote) {
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
     const path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (fs.existsSync(path)) {
-        sendMulticastMsg('h' + uuid + ':' + tcpBoundPort, false, multicastPort, multicastAddr);
+        sendMulticastMsg('h' + uuid + ':' + httpBoundPort, false, multicastPort, multicastAddr);
     }
 }
 function multicastPut(message, remote) {
@@ -157,7 +161,7 @@ function multicastPut(message, remote) {
     const size = uuidAndSize[1];
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
     if (diskusage.checkSync(mountPoint).available > size) {
-        sendMulticastMsg('s' + uuid + ':' + tcpBoundPort, false, multicastPort, multicastAddr);
+        sendMulticastMsg('s' + uuid + ':' + httpBoundPort, false, multicastPort, multicastAddr);
     }
 }
 function uploadMultipartFile(req, res) {
@@ -288,4 +292,33 @@ function validateDirPath(dirPath) {
         fs.mkdirSync(dirPath, { recursive: true });
         if (debug) {console.log('created dir path: ' + dirPath);}
     }
+}
+function processArgv(args) {
+    let argv = {_: []};
+    args.forEach(arg => {
+        switch (arg.charAt(0)) {
+            case '-':
+                switch (arg.charAt(1)) {
+                    case '-':
+                        const param = arg.slice(2);
+                        if (param.split('=').length === 2) {
+                            argv[param.split('=')[0]] = param.split('=')[1];
+                        } else {
+                            argv[param] = true;
+                        }
+                        break;
+                    default:
+                        //no single dash args implemented
+                        break;
+                }
+                break;
+            default:
+                argv._.push(arg);
+        }
+    });
+    return argv;
+}
+function argsHandler() {
+    if (argv.mport && typeof argv.mport === "string" && argv.mport.length > 0) {multicastPort = argv.mport}
+    if (argv.hport && typeof argv.hport === "string" && argv.hport.length > 0) {httpPort = argv.hport}
 }
