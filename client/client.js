@@ -9,7 +9,6 @@ const fs = require('fs');
 const dgram = require('dgram');
 const multicastClient = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
-const multicastPort = 5001;
 const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempt will wait before trying again
@@ -21,13 +20,17 @@ const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores filekeys 
 const downloadLogFormat = {columns: ['uuid','datetime']} //used to create log file if missing
 const maxFileLengthBytes = 255;
 
-//Defaults
+//command based implementation defaults
+let intervals = {};
+let multicastPort = 5001;
+
+//flag-based implementation defaults
 let tcpServerPort = 5000;
-let tcpServerHostname = 'localhost'
+let tcpServerHostname = '192.168.1.43';
 let path = '';
 let method = 'GET';
 let fpath = null;
-let intervals = {};
+
 
 //testing
 let debug = false;
@@ -72,7 +75,7 @@ if (argv._.length > 0) {
     } else {
         //send a http request
         //argv handling and error checking
-        argsHandler();
+        flagArgsHandler();
         //create http request
         const options = {
             hostname: tcpServerHostname,
@@ -154,7 +157,7 @@ function validUUID(val) {
     }
     return true;
 }
-function httpGet(hostname = tcpServerHostname, port = tcpServerPort, fileUUID, key = '', iv = '') {
+function httpGet(hostname, port, fileUUID, key = '', iv = '') {
     const options = {
         hostname: hostname,
         port: port,
@@ -181,7 +184,7 @@ async function PUT() {
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
-function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '', callback = () => { }) {
+function httpPut(hostname, port, filePath, key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -244,7 +247,7 @@ async function uploadIterThroughArgs(args) {
         }
     });
 }
-function httpPost(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '', callback = () => { }) {
+function httpPost(hostname, port, filePath, key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -502,7 +505,7 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
         }
     }, timeInterval);
 }
-function argsHandler() {
+function flagArgsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
     if (argv.path) { path = argv.path };
     if (argv.port) { tcpServerPort = argv.port };
