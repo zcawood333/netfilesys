@@ -27,9 +27,7 @@ let tcpServerHostname = 'localhost'
 let path = '';
 let method = 'GET';
 let fpath = null;
-let getIntervals = {};
-let putIntervals = {}; 
-let postIntervals = {};
+let intervals = {};
 
 //testing
 let debug = false;
@@ -105,7 +103,7 @@ async function GET() {
     await initMulticastClient();
     const args = argv._.slice(1);
     await getIterThroughArgs(args);
-    closeMulticastClient(() => {return Object.keys(getIntervals).length === 0}, attemptTimeout);
+    closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
 async function getIterThroughArgs(args) {
     args.forEach(arg => {
@@ -125,16 +123,16 @@ async function getIterThroughArgs(args) {
         }
         if (validUUID(arg)) {
             const uuid = arg.replace(/-/g, '');
-            getIntervals[uuid] = {
+            intervals[uuid] = {
                 interval: setInterval(() => {
-                    if (getIntervals[uuid]['attempts'] < numAttempts) {
+                    if (intervals[uuid]['attempts'] < numAttempts) {
                         sendMulticastMsg('g' + uuid);
-                        getIntervals[uuid]['attempts']++;
+                        intervals[uuid]['attempts']++;
                     } else {
                         if (debug) { console.log(`file with uuid: ${uuid} not found`); }
                         if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
-                        clearInterval(getIntervals[uuid]['interval']);
-                        delete getIntervals[uuid];
+                        clearInterval(intervals[uuid]['interval']);
+                        delete intervals[uuid];
                     }
                 }, attemptTimeout),
                 attempts: 0,
@@ -180,34 +178,8 @@ async function PUT() {
     }
     await initMulticastClient();
     const args = argv._.slice(1);
-    await putIterThroughArgs(args);
-    closeMulticastClient(() => {return Object.keys(putIntervals).length === 0}, attemptTimeout);
-}
-async function putIterThroughArgs(args) {
-    args.forEach(arg => {
-        const filePath = arg;
-        if (fs.existsSync(filePath)) {
-            const size = fs.statSync(filePath).size + 8; //additional 8 to account for possible aes encryption padding
-            const uuid = uuidv4().replace(/-/g, '');
-            putIntervals[uuid] = {
-                interval: setInterval(() => {
-                    if (putIntervals[uuid]['attempts'] < numAttempts) {
-                        sendMulticastMsg('u' + uuid + ':' + size);
-                        putIntervals[uuid]['attempts']++;
-                    } else {
-                        if (debug) { console.log(`file with uuid: ${uuid} unable to be uploaded`); }
-                        if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
-                        clearInterval(putIntervals[uuid]['interval']);
-                        delete putIntervals[uuid];
-                    }
-                }, attemptTimeout),
-                attempts: 0,
-                filePath: filePath,
-            }            
-        } else {
-            if (debug) { console.log(`filepath: ${filePath} does not exist`); }
-        }
-    });
+    await uploadIterThroughArgs(args);
+    closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
 function httpPut(hostname = tcpServerHostname, port = tcpServerPort, filePath, key = '', iv = '', callback = () => { }) {
     const options = {
@@ -243,25 +215,25 @@ async function POST() {
     }
     await initMulticastClient(true);
     const args = argv._.slice(1);
-    await postIterThroughArgs(args);
-    closeMulticastClient(() => {return Object.keys(postIntervals).length === 0}, attemptTimeout);
+    await uploadIterThroughArgs(args);
+    closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
-async function postIterThroughArgs(args) {
+async function uploadIterThroughArgs(args) {
     args.forEach(arg => {
         const filePath = arg;
         if (fs.existsSync(filePath)) {
             const size = fs.statSync(filePath).size + 8; //additional 8 to account for possible aes encryption padding
             const uuid = uuidv4().replace(/-/g, '');
-            postIntervals[uuid] = {
+            intervals[uuid] = {
                 interval: setInterval(() => {
-                    if (postIntervals[uuid]['attempts'] < numAttempts) {
+                    if (intervals[uuid]['attempts'] < numAttempts) {
                         sendMulticastMsg('u' + uuid + ':' + size);
-                        postIntervals[uuid]['attempts']++;
+                        intervals[uuid]['attempts']++;
                     } else {
                         if (debug) { console.log(`file with uuid: ${uuid} unable to be uploaded`); }
                         if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
-                        clearInterval(postIntervals[uuid]['interval']);
-                        delete postIntervals[uuid];
+                        clearInterval(intervals[uuid]['interval']);
+                        delete intervals[uuid];
                     }
                 }, attemptTimeout),
                 attempts: 0,
@@ -327,33 +299,25 @@ async function initMulticastClient(post = false) {
         switch (message.charAt(0)) {
             case 'h':
                 //validate uuid
-                if (validUUID(uuid) && getIntervals[uuid]) {
+                if (validUUID(uuid) && intervals[uuid]) {
                     //record key and iv
-                    const key = getIntervals[uuid]['key'];
-                    const iv = getIntervals[uuid]['iv'];
+                    const key = intervals[uuid]['key'];
+                    const iv = intervals[uuid]['iv'];
                     //clear uuid interval
-                    clearInterval(getIntervals[uuid]['interval']);
-                    delete getIntervals[uuid];
+                    clearInterval(intervals[uuid]['interval']);
+                    delete intervals[uuid];
                     //get file from server claiming to have it
                     httpGet(remote.address, port, uuid, key, iv);
                 }
                 break;
             case 's':
-                if (validUUID(uuid) && (putIntervals[uuid] || postIntervals[uuid])) {
+                if (validUUID(uuid) && intervals[uuid]) {
                     let filePath;
-                    if (post) {
-                        //record filepath
-                        filePath = postIntervals[uuid]['filePath'];
-                        //clear uuid interval
-                        clearInterval(postIntervals[uuid]['interval']);
-                        delete postIntervals[uuid];
-                    } else {
-                        //record filepath
-                        filePath = putIntervals[uuid]['filePath'];
-                        //clear uuid interval
-                        clearInterval(putIntervals[uuid]['interval']);
-                        delete putIntervals[uuid];
-                    }
+                    //record filepath
+                    filePath = intervals[uuid]['filePath'];
+                    //clear uuid interval
+                    clearInterval(intervals[uuid]['interval']);
+                    delete intervals[uuid];
                     //upload file to server claiming to have space
                     if (!argv.noEncryption) {
                         const uuidKey = uuidv4().replace(/-/g, '');
