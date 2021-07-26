@@ -12,7 +12,7 @@ const multicastAddr = '230.185.192.108';
 const multicastPort = 5001;
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
-const tcpAddr = '0.0.0.0';
+const ipAddr = '192.168.1.43';
 const tcpPort = 0;
 const backlog = 5;
 const uploadsDir = `${__dirname}/uploads/`;
@@ -94,8 +94,8 @@ app.post('/upload', (req, res) => {
 });
 
 //start both tcp and udp server
-if (debug) console.log(`Starting http based server on ${tcpAddr}:${tcpPort}`);
-const listener = app.listen(tcpPort, tcpAddr, backlog, () => {
+if (debug) console.log(`Starting http based server on ${ipAddr}:${tcpPort}`);
+const listener = app.listen(tcpPort, ipAddr, backlog, () => {
     if (debug) {console.log(`Starting http based server: `, listener.address())}
     tcpBoundPort = listener.address().port;
 });
@@ -130,7 +130,7 @@ function initMulticastServer() {
                 break;
         }
     });
-    multicastServer.bind(multicastPort, '192.168.1.43');
+    multicastServer.bind(multicastPort, ipAddr);
     
 }
 function sendMulticastMsg(msg = 'this is a sample multicast message (from server)', close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
