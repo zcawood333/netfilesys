@@ -120,6 +120,7 @@ async function getIterThroughArgs(args) {
             iv = keyIV.slice(32);
             if (!validUUID(key)) {
                 if (debug) { console.log(`filekey: ${filekey} is invalid`); }
+                console.log(`FAILED: ${filekey}`);
                 return;
             }
         }
@@ -135,6 +136,7 @@ async function getIterThroughArgs(args) {
                         if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
                         clearInterval(intervals[uuid]['interval']);
                         delete intervals[uuid];
+                        console.log(`FAILED: ${arg}`);
                     }
                 }, attemptTimeout),
                 attempts: 0,
@@ -143,6 +145,7 @@ async function getIterThroughArgs(args) {
             }
         } else {
             if (debug) { console.log(`arg: ${arg} is not a valid uuid`); }
+            console.log(`FAILED: ${arg}`);
         }
     });
 }
@@ -221,8 +224,7 @@ async function POST() {
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
 async function uploadIterThroughArgs(args) {
-    args.forEach(arg => {
-        const filePath = arg;
+    args.forEach(filePath => {
         if (fs.existsSync(filePath)) {
             const size = fs.statSync(filePath).size + 8; //additional 8 to account for possible aes encryption padding
             const uuid = uuidv4().replace(/-/g, '');
@@ -236,6 +238,7 @@ async function uploadIterThroughArgs(args) {
                         if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
                         clearInterval(intervals[uuid]['interval']);
                         delete intervals[uuid];
+                        console.log(`FAILED: ${filePath}`);
                     }
                 }, attemptTimeout),
                 attempts: 0,
@@ -243,6 +246,7 @@ async function uploadIterThroughArgs(args) {
             }   
         } else {
             if (debug) { console.log(`filePath: ${filePath} does not exist`); }
+            console.log(`FAILED: ${filePath}`);
         }
     });
 }
