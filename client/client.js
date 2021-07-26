@@ -505,7 +505,7 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
     }, timeInterval);
 }
 function commandArgsHandler() {
-    if (argv.port) {multicastPort = argv.port}
+    if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
 }
 function flagArgsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
