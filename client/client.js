@@ -219,7 +219,7 @@ async function POST() {
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
     }
-    await initMulticastClient(true);
+    await initMulticastClient(true, argv.bucket);
     const args = argv._.slice(1);
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
@@ -251,7 +251,7 @@ async function uploadIterThroughArgs(args) {
         }
     });
 }
-function httpPost(hostname, port, filePath, ogFilePath, key = '', iv = '', callback = () => { }) {
+function httpPost(hostname, port, filePath, ogFilePath, bucket = undefined, key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -279,6 +279,7 @@ function httpPost(hostname, port, filePath, ogFilePath, key = '', iv = '', callb
     options.headers = form.getHeaders();
     //create request
     const req = http.request(options);
+    if (bucket) {req.setHeader('bucket', bucket);}
     initRequest(req, false, undefined, true, false, { filePath: ogFilePath }, key, iv);
     //send request
     sendRequest(req, true, { readStream: form }, port);
@@ -332,7 +333,7 @@ async function initMulticastClient(post = false, bucket = undefined) {
                         const encryptedFilePath = `${tempFilePath}${uuidKey}`;
                         aesEncrypt(filePath, encryptedFilePath, uuidKey, iv, () => {
                             if (post) {
-                                httpPost(remote.address, port, encryptedFilePath, filePath, uuidKey, iv, () => {
+                                httpPost(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, () => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
@@ -347,7 +348,7 @@ async function initMulticastClient(post = false, bucket = undefined) {
                         });
                     } else {
                         if (post) {
-                            httpPost(remote.address, port, filePath, filePath);
+                            httpPost(remote.address, port, filePath, filePath, bucket);
                         } else {
                             httpPut(remote.address, port, filePath, filePath, bucket);
                         }
