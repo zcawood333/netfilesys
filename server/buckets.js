@@ -22,7 +22,6 @@ class TempBucket extends Bucket {
         this.timeMin = timeMin; //time after which files are deleted
         this.maxError = 0.1; //max percent of extra time files might live before deletion (e.g. files may live 0.1 ==> 10% longer than timeMin)
         this.cleaner = setInterval(() => {
-            console.log('running cleaner for timeMin: ', this.timeMin);
             rmDirTimed(`${uploadsDir}${this.mountPoint}`, false, this.timeMin);
         }, (timeMin * 1000 * 60) * this.maxError);
     }
