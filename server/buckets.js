@@ -30,7 +30,7 @@ class TempBucket extends Bucket {
             rmDirTimed(`${uploadsDir}${this.mountPoint}`, false, this.timeMin, this.cleanerIgnore);
         }
         this.cleanerPeriod = (timeMin * 1000 * 60) * this.maxError;
-        this.cleaner = setInterval(cleanerFunc, cleanerPeriod);
+        this.cleaner = setInterval(this.cleanerFunc, this.cleanerPeriod);
     }
 }
 
