@@ -26,9 +26,11 @@ class TempBucket extends Bucket {
         super(name, mountPoint, 'tmp');
         this.timeMin = timeMin; //time after which files are deleted
         this.maxError = 0.1; //max percent of extra time files might live before deletion (e.g. files may live 0.1 ==> 10% longer than timeMin)
-        this.cleaner = setInterval(() => {
-            rmDirTimed(`${uploadsDir}${this.mountPoint}`, false, this.timeMin);
-        }, (timeMin * 1000 * 60) * this.maxError);
+        this.cleanerFunc = () => {
+            rmDirTimed(`${uploadsDir}${this.mountPoint}`, false, this.timeMin, this.cleanerIgnore);
+        }
+        this.cleanerPeriod = (timeMin * 1000 * 60) * this.maxError;
+        this.cleaner = setInterval(cleanerFunc, cleanerPeriod);
     }
 }
 
@@ -45,7 +47,7 @@ function initBuckets() {
     }
     return buckets;
 }
-function rmDirTimed(dirPath, removeSelf, timeMin) { //from https://gist.github.com/liangzan/807712/8fb16263cb39e8472d17aea760b6b1492c465af2
+function rmDirTimed(dirPath, removeSelf, timeMin, filesToIgnore) { //from https://gist.github.com/liangzan/807712/8fb16263cb39e8472d17aea760b6b1492c465af2
     try { files = fs.readdirSync(dirPath); }
     catch(err) { return; }
     if (files.length > 0) {
