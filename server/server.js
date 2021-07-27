@@ -197,7 +197,13 @@ function uploadMultipartFile(req, res) {
     }
     
     const noDashesUUID = genUUID();
-    const path = createPath(noDashesUUID, req);
+    let path;
+    try {
+        path = createPath(noDashesUUID, req);
+    } catch(err) {
+        console.error(err);
+        return res.status(400).send(err);
+    }
     validateDirPath(path.slice(0,-2));
     fp = req.files.fileKey;
     fp.mv(path, err => {
@@ -307,7 +313,7 @@ function createPath(noDashesUUID, req) {
     if (buckets[bucket]) {
         fullPath = `${uploadsDir}${buckets[bucket].mountPoint}${uuidPath}`;
     } else {
-        throw new Error('Invalid bucket');
+        throw new Error(`Invalid bucket: ${bucket}`);
     }
     return fullPath;
 }
