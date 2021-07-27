@@ -370,6 +370,46 @@
             "args": ["POST", "${workspaceFolder}/../test_files_to_upload/b.txt", "--debug", "--noEncryption"]
         },
         {
+            "name": "Client POST ('std' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=std"]
+        },
+        {
+            "name": "Client POST ('tmp1' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=tmp1"]
+        },
+        {
+            "name": "Client POST ('tmp2' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=tmp2"]
+        },
+        {
+            "name": "Client POST ('tmp4' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=tmp4"]
+        },
+        {
             "name": "Client POST (file doesn't exist)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
