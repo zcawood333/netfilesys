@@ -11,7 +11,11 @@ class Bucket{
         return fs.existsSync(`${uploadsDir}${this.mountPoint}${filePath}`);
     }
 }
-
+class DefaultBucket extends Bucket {
+    constructor(name) {
+        super(name, '', 'default');
+    }
+}
 class StandardBucket extends Bucket {
     constructor(name, mountPoint) {
         super(name, mountPoint, 'std');
