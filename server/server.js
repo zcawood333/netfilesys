@@ -234,7 +234,13 @@ function uploadDirectFile(req, res) {
     }
     //generate and parse uuid/filepath
     const noDashesUUID = genUUID();
-    const path = createPath(noDashesUUID, req);
+    let path;
+    try {
+        path = createPath(noDashesUUID, req);
+    } catch(err) {
+        console.error(err);
+        return res.status(400).send(err);
+    }
     validateDirPath(path.slice(0,-2));    //write req contents to the filepath
     const fileStream = fs.createWriteStream(path);
     fileStream.on('error', err => {
@@ -301,7 +307,7 @@ function createPath(noDashesUUID, req) {
     if (buckets[bucket]) {
         fullPath = `${uploadsDir}${buckets[bucket].mountPoint}${uuidPath}`;
     } else {
-        fullPath = `${uploadsDir}${uuidPath}`;
+        throw new Error('Invalid bucket');
     }
     return fullPath;
 }
