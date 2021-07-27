@@ -36,7 +36,7 @@ class TempBucket extends Bucket {
 
 
 function initBuckets() {
-    const numTempBuckets = 3; //number of temp buckets
+    const numTempBuckets = 6; //number of temp buckets
     const tempBucketMultiplier = 2; //multiplier between temp buckets' cleaning intervals
     const tempBucketInit = 1; //fastest cleaning temp bucket's interval (min)
     const buckets = {};
@@ -47,7 +47,7 @@ function initBuckets() {
     }
     return buckets;
 }
-function rmDirTimed(dirPath, removeSelf, timeMin, filesToIgnore) { //from https://gist.github.com/liangzan/807712/8fb16263cb39e8472d17aea760b6b1492c465af2
+function rmDirTimed(dirPath, removeSelf, timeMin) { //from https://gist.github.com/liangzan/807712/8fb16263cb39e8472d17aea760b6b1492c465af2
     try { files = fs.readdirSync(dirPath); }
     catch(err) { return; }
     if (files.length > 0) {
