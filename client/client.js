@@ -80,7 +80,7 @@ if (argv._.length > 0) {
             hostname: tcpServerHostname,
             port: tcpServerPort,
             path: path,
-            method: 'GET'
+            method: 'GET',
         }
         //make POST-specific changes
         let form = undefined;
@@ -186,12 +186,12 @@ async function PUT() {
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
-function httpPut(hostname, port, filePath, key = '', iv = '', callback = () => { }) {
+function httpPut(hostname, port, filePath, bucket = undefined, key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
         path: '/upload',
-        method: 'PUT'
+        method: 'PUT',
     }
     let putFile = undefined;
     try {
@@ -201,6 +201,7 @@ function httpPut(hostname, port, filePath, key = '', iv = '', callback = () => {
         return;
     }
     const req = http.request(options);
+    req.setHeader('bucket', bucket);
     initRequest(req, false, undefined, false, true, key, iv);
     putFile.on('error', err => {
         console.error(err);
@@ -337,7 +338,7 @@ async function initMulticastClient(post = false) {
                                     });
                                 });
                             } else {
-                                httpPut(remote.address, port, encryptedFilePath, uuidKey, iv, () => {
+                                httpPut(remote.address, port, encryptedFilePath, 'std', uuidKey, iv, () => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
@@ -348,7 +349,7 @@ async function initMulticastClient(post = false) {
                         if (post) {
                             httpPost(remote.address, port, filePath);
                         } else {
-                            httpPut(remote.address, port, filePath);
+                            httpPut(remote.address, port, filePath, 'std');
                         }
                     }
                 }

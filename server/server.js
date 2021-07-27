@@ -18,7 +18,8 @@ const uploadsDir = `${__dirname}/uploads/`;
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
 const uploadLogFormat = {columns: ['method','filename','uuid','datetime']}
 const downloadLogPath = `${__dirname}/logs/download_log.csv`;
-const downloadLogFormat = {columns: ['uuid','datetime']}
+const downloadLogFormat = {columns: ['uuid','datetime']};
+const buckets = require('./buckets').initBuckets();
 
 //testing variables
 const debug = true;
@@ -175,10 +176,9 @@ function uploadMultipartFile(req, res) {
         if (debug) {console.log('No files to upload')};
         return res.status(400).send('No files were uploaded.');
     }
-
     
     const noDashesUUID = genUUID();
-    const path = createPath(noDashesUUID);
+    const path = createPath(noDashesUUID, req);
     validateDirPath(path.slice(0,-2));
     fp = req.files.fileKey;
     fp.mv(path, err => {
@@ -215,7 +215,7 @@ function uploadDirectFile(req, res) {
     }
     //generate and parse uuid/filepath
     const noDashesUUID = genUUID();
-    const path = createPath(noDashesUUID);
+    const path = createPath(noDashesUUID, req);
     validateDirPath(path.slice(0,-2));    //write req contents to the filepath
     const fileStream = fs.createWriteStream(path);
     fileStream.on('error', err => {
@@ -274,10 +274,17 @@ function genUUID() {
     if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
     return noDashesUUID;
 }
-function createPath(noDashesUUID) {
+function createPath(noDashesUUID, req) {
+    const bucket = req.get('bucket');
     const uuidPath = noDashesUUID.replace(/(.{3})/g,"$1/")
     if (debug) {console.log(`uuid turned into path: ${uuidPath}`)};
-    return `${uploadsDir}${uuidPath}`;
+    let fullPath = undefined;
+    if (buckets[bucket]) {
+        fullPath = `${uploadsDir}${buckets[bucket].mountPoint}${uuidPath}`;
+    } else {
+        fullPath = `${uploadsDir}${uuidPath}`;
+    }
+    return fullPath;
 }
 function validateLogFile(path, format) {
     const logDir = path.split('/').slice(0, -1).join('/');
