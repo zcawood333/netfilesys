@@ -186,7 +186,7 @@ async function PUT() {
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
-function httpPut(hostname, port, filePath, ogFilePath, bucket = undefined, key = '', iv = '', callback = () => { }) {
+function httpPut(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -251,7 +251,7 @@ async function uploadIterThroughArgs(args) {
         }
     });
 }
-function httpPost(hostname, port, filePath, ogFilePath, bucket = undefined, key = '', iv = '', callback = () => { }) {
+function httpPost(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -284,7 +284,7 @@ function httpPost(hostname, port, filePath, ogFilePath, bucket = undefined, key 
     //send request
     sendRequest(req, true, { readStream: form }, port);
 }
-async function initMulticastClient(post = false, bucket = undefined) {
+async function initMulticastClient(post = false, bucket = 'default') {
     multicastClient.on('error', err => {
         console.error(err);
     })
