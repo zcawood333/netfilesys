@@ -181,7 +181,7 @@ async function PUT() {
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
     }
-    await initMulticastClient();
+    await initMulticastClient(false, argv.bucket);
     const args = argv._.slice(1);
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
@@ -201,7 +201,7 @@ function httpPut(hostname, port, filePath, bucket = undefined, key = '', iv = ''
         return;
     }
     const req = http.request(options);
-    req.setHeader('bucket', bucket);
+    if (bucket) {req.setHeader('bucket', bucket);}
     initRequest(req, false, undefined, false, true, key, iv);
     putFile.on('error', err => {
         console.error(err);
@@ -283,7 +283,7 @@ function httpPost(hostname, port, filePath, key = '', iv = '', callback = () => 
     //send request
     sendRequest(req, true, { readStream: form }, port);
 }
-async function initMulticastClient(post = false) {
+async function initMulticastClient(post = false, bucket = undefined) {
     multicastClient.on('error', err => {
         console.error(err);
     })
@@ -338,7 +338,7 @@ async function initMulticastClient(post = false) {
                                     });
                                 });
                             } else {
-                                httpPut(remote.address, port, encryptedFilePath, 'std', uuidKey, iv, () => {
+                                httpPut(remote.address, port, encryptedFilePath, bucket, uuidKey, iv, () => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
@@ -349,7 +349,7 @@ async function initMulticastClient(post = false) {
                         if (post) {
                             httpPost(remote.address, port, filePath);
                         } else {
-                            httpPut(remote.address, port, filePath, 'std');
+                            httpPut(remote.address, port, filePath, bucket);
                         }
                     }
                 }
@@ -511,6 +511,7 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
 }
 function commandArgsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
+    if (!(argv.bucket && typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.warn('Invalid bucket ==> using default');}
 }
 function flagArgsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
