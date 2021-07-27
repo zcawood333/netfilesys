@@ -43,7 +43,16 @@ app.get('/exist', (req, res) => {
 app.get('/download/:uuid', (req, res) => {
     if (debug) {console.log('GET request: ', req.params)};
     const parsedUUIDPath = req.params.uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
-    const path = `${uploadsDir}${parsedUUIDPath}`;
+    let path = undefined;
+    Object.values(buckets).some(bucket => {
+        if (bucket.fileExists(parsedUUIDPath)) {
+            path = `${uploadsDir}${bucket.mountPoint}${parsedUUIDPath}`;
+            return true;
+        } else {
+            return false;
+        }
+    });
+
     
     if (debug) {console.log(`path: ${path}`)};
 
@@ -151,8 +160,8 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from server
 function multicastGet(message, remote) {
     const uuid = message.toString().slice(1);
     if (debug) {console.log(`parsed uuid: ${uuid}`)}
-    const path = uploadsDir + uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
-    if (fs.existsSync(path)) {
+    const path = uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    if (Object.values(buckets).some(bucket => {return bucket.fileExists(path)})) {
         sendMulticastMsg('h' + uuid + ':' + httpBoundPort, false, multicastPort, multicastAddr);
     }
 }
@@ -206,7 +215,7 @@ function uploadMultipartFile(req, res) {
                 };
             });
         };
-    });    
+    });
 }
 function uploadDirectFile(req, res) {
     if (debug) {
