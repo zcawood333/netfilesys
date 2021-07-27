@@ -186,7 +186,7 @@ async function PUT() {
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
-function httpPut(hostname, port, filePath, bucket = undefined, key = '', iv = '', callback = () => { }) {
+function httpPut(hostname, port, filePath, ogFilePath, bucket = undefined, key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -202,7 +202,7 @@ function httpPut(hostname, port, filePath, bucket = undefined, key = '', iv = ''
     }
     const req = http.request(options);
     if (bucket) {req.setHeader('bucket', bucket);}
-    initRequest(req, false, undefined, false, true, key, iv);
+    initRequest(req, false, undefined, false, true, { filePath: ogFilePath }, key, iv);
     putFile.on('error', err => {
         console.error(err);
     });
@@ -251,7 +251,7 @@ async function uploadIterThroughArgs(args) {
         }
     });
 }
-function httpPost(hostname, port, filePath, key = '', iv = '', callback = () => { }) {
+function httpPost(hostname, port, filePath, ogFilePath, key = '', iv = '', callback = () => { }) {
     const options = {
         hostname: hostname,
         port: port,
@@ -279,7 +279,7 @@ function httpPost(hostname, port, filePath, key = '', iv = '', callback = () => 
     options.headers = form.getHeaders();
     //create request
     const req = http.request(options);
-    initRequest(req, false, undefined, true, false, key, iv);
+    initRequest(req, false, undefined, true, false, { filePath: ogFilePath }, key, iv);
     //send request
     sendRequest(req, true, { readStream: form }, port);
 }
@@ -332,13 +332,13 @@ async function initMulticastClient(post = false, bucket = undefined) {
                         const encryptedFilePath = `${tempFilePath}${uuidKey}`;
                         aesEncrypt(filePath, encryptedFilePath, uuidKey, iv, () => {
                             if (post) {
-                                httpPost(remote.address, port, encryptedFilePath, uuidKey, iv, () => {
+                                httpPost(remote.address, port, encryptedFilePath, filePath, uuidKey, iv, () => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
                                 });
                             } else {
-                                httpPut(remote.address, port, encryptedFilePath, bucket, uuidKey, iv, () => {
+                                httpPut(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, () => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
@@ -347,9 +347,9 @@ async function initMulticastClient(post = false, bucket = undefined) {
                         });
                     } else {
                         if (post) {
-                            httpPost(remote.address, port, filePath);
+                            httpPost(remote.address, port, filePath, filePath);
                         } else {
-                            httpPut(remote.address, port, filePath, bucket);
+                            httpPut(remote.address, port, filePath, filePath, bucket);
                         }
                     }
                 }
@@ -361,45 +361,53 @@ async function initMulticastClient(post = false, bucket = undefined) {
     if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
     multicastClient.bind(multicastPort, ipAddr);
 }
-function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, key = '', iv = '') {
+function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined' }, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
     });
     req.on('response', res => {
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
-        if (GET) {
-            //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
-            let path;
-            if (key != '') { path = `${tempFilePath}${getOptions.downloadFileName}` }
-            else { path = `${getDownloadPath}${getOptions.downloadFileName}`}
-            if (debug) { console.log(`path: ${path}`) }
-            validateDirPath(path.split('/').slice(0,-1).join('/'));
-            const writeStream = fs.createWriteStream(path);
-            writeStream.on('finish', () => {
-                if (key != '') {
-                    aesDecrypt(path, `${getDownloadPath}${getOptions.downloadFileName}`, key, iv, () => {
-                        fs.rm(path, () => {
-                            if (debug) { console.log(`temp file: ${path} removed`); }
+        if (res.statusCode === 200) {
+            if (GET) {
+                //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
+                let path;
+                if (key != '') { path = `${tempFilePath}${getOptions.downloadFileName}` }
+                else { path = `${getDownloadPath}${getOptions.downloadFileName}`}
+                if (debug) { console.log(`path: ${path}`) }
+                validateDirPath(path.split('/').slice(0,-1).join('/'));
+                const writeStream = fs.createWriteStream(path);
+                writeStream.on('finish', () => {
+                    if (key != '') {
+                        aesDecrypt(path, `${getDownloadPath}${getOptions.downloadFileName}`, key, iv, () => {
+                            fs.rm(path, () => {
+                                if (debug) { console.log(`temp file: ${path} removed`); }
+                            });
+                            if (debug) { console.log(`file downloaded to ${getDownloadPath}${getOptions.downloadFileName}`); }
                         });
-                        if (debug) { console.log(`file downloaded to ${getDownloadPath}${getOptions.downloadFileName}`); }
+                    }
+                    writeStream.close();
+                });
+                res.pipe(writeStream);
+            }
+            res.on('data', d => {
+                if (debug) { console.log('data: ', d.toString()); }
+                if (GET) {
+                    logDownload(getOptions.serverUUID, key, iv, () => {
+                        if (debug) { console.log(`file download logged successfully`); }
+                    });
+                } else if (POST || PUT) {
+                    logUpload(POST ? 'POST' : 'PUT', d, key, iv, () => {
+                        if (debug) { console.log(`file upload logged successfully`); }
                     });
                 }
-                writeStream.close();
             });
-            res.pipe(writeStream);
-        }
-        res.on('data', d => {
-            if (debug) { console.log('data: ', d.toString()); }
+        } else {
             if (GET) {
-                logDownload(getOptions.serverUUID, key, iv, () => {
-                    if (debug) { console.log(`file download logged successfully`); }
-                });
-            } else if (POST || PUT) {
-                logUpload(POST ? 'POST' : 'PUT', d, key, iv, () => {
-                    if (debug) { console.log(`file upload logged successfully`); }
-                });
+                console.log(`FAILED: ${getOptions.serverUUID}${key}${iv}`);
+            } else if (PUT || POST) {
+                console.log(`FAILED: ${uploadOptions.filePath}`)
             }
-        });
+        }
     });
 }
 function logUpload(method = 'undefined', serverUUID, clientKey, iv, callback = () => { }) {
