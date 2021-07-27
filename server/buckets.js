@@ -8,9 +8,10 @@ class Bucket{
         this.type = type;
     }
     fileExists(filePath) {
-        return fs.existsSync(`${uploadsDir}${mountPoint}${filePath}`);
+        return fs.existsSync(`${uploadsDir}${this.mountPoint}${filePath}`);
     }
 }
+
 class StandardBucket extends Bucket {
     constructor(name, mountPoint) {
         super(name, mountPoint, 'std');
@@ -27,11 +28,13 @@ class TempBucket extends Bucket {
     }
 }
 
+
 function initBuckets() {
     const numTempBuckets = 3; //number of temp buckets
     const tempBucketMultiplier = 2; //multiplier between temp buckets' cleaning intervals
     const tempBucketInit = 1; //fastest cleaning temp bucket's interval (min)
     const buckets = {};
+    buckets['default'] = new DefaultBucket('default');
     buckets['std'] = new StandardBucket('std', 'std/');
     for(let i = tempBucketInit; i < tempBucketInit * Math.pow(tempBucketMultiplier, numTempBuckets); i *= tempBucketMultiplier) {
         buckets[`tmp${i}`] = new TempBucket(`tmp${i}`, `tmp${i}/`, i);  
