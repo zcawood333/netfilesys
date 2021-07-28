@@ -159,7 +159,7 @@ function validUUID(val) {
     }
     return true;
 }
-function httpGet(hostname, port, fileUUID, key = '', iv = '') {
+function httpGet(hostname, port, fileUUID, key = '', iv = '', callback = () => {}) {
     const options = {
         hostname: hostname,
         port: port,
@@ -173,7 +173,7 @@ function httpGet(hostname, port, fileUUID, key = '', iv = '') {
         argv.outputFile.length > 0 &&
         !argv.outputFile.includes('.') &&
         Buffer.byteLength(argv.outputFile) < maxFileLengthBytes) {downloadFileName = argv.outputFile}
-    initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID }, false, false, key, iv);
+    initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID, callback: callback }, false, false, key, iv);
     sendRequest(req, undefined, undefined, port);
 }
 async function PUT() {
@@ -311,11 +311,12 @@ async function initMulticastClient(post = false, bucket = 'default') {
                     //record key and iv
                     const key = intervals[uuid]['key'];
                     const iv = intervals[uuid]['iv'];
-                    //clear uuid interval
-                    clearInterval(intervals[uuid]['interval']);
-                    delete intervals[uuid];
                     //get file from server claiming to have it
-                    httpGet(remote.address, port, uuid, key, iv);
+                    httpGet(remote.address, port, uuid, key, iv, () => {
+                        //clear uuid interval
+                        clearInterval(intervals[uuid]['interval']);
+                        delete intervals[uuid];
+                    });
                 }
                 break;
             case 's':
@@ -362,7 +363,7 @@ async function initMulticastClient(post = false, bucket = 'default') {
     if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
     multicastClient.bind(multicastPort, ipAddr);
 }
-function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined' }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined' }, key = '', iv = '') {
+function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined', callback: () => {} }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined' }, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
     });
@@ -387,6 +388,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
                         });
                     }
                     writeStream.close();
+                    getOptions.callback();
                 });
                 res.pipe(writeStream);
             }
@@ -403,9 +405,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
                 }
             });
         } else {
-            if (GET) {
-                console.log(`FAILED: ${getOptions.serverUUID}${key}${iv}`);
-            } else if (PUT || POST) {
+            if (PUT || POST) {
                 console.log(`FAILED: ${uploadOptions.filePath}`)
             }
         }
