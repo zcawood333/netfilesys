@@ -9,7 +9,7 @@ const fs = require('fs');
 const dgram = require('dgram');
 const multicastClient = dgram.createSocket({type: 'udp4', reuseAddr: true});
 const multicastAddr = '230.185.192.108';
-const ipAddr = '192.168.1.43';
+const ipAddr = '192.168.254.208';
 const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempt will wait before trying again
@@ -231,17 +231,20 @@ async function uploadIterThroughArgs(args) {
             const uuid = uuidv4().replace(/-/g, '');
             intervals[uuid] = {
                 interval: setInterval(() => {
-                    if (intervals[uuid]['attempts'] < numAttempts) {
-                        sendMulticastMsg('u' + uuid + ':' + size);
-                        intervals[uuid]['attempts']++;
-                    } else {
-                        if (debug) { console.log(`file with uuid: ${uuid} unable to be uploaded`); }
-                        if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
-                        clearInterval(intervals[uuid]['interval']);
-                        delete intervals[uuid];
-                        console.log(`FAILED: ${filePath}`);
+                    if (!intervals[uuid]['intervalLock']) {
+                        if (intervals[uuid]['attempts'] < numAttempts) {
+                            sendMulticastMsg('u' + uuid + ':' + size);
+                            intervals[uuid]['attempts']++;
+                        } else {
+                            if (debug) { console.log(`file with uuid: ${uuid} unable to be uploaded`); }
+                            if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
+                            clearInterval(intervals[uuid]['interval']);
+                            delete intervals[uuid];
+                            console.log(`FAILED: ${filePath}`);
+                        }
                     }
                 }, attemptTimeout),
+                intervalLock: false,
                 attempts: 0,
                 filePath: filePath,
             }   
@@ -251,7 +254,7 @@ async function uploadIterThroughArgs(args) {
         }
     });
 }
-function httpPost(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => { }) {
+function httpPost(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => {}) {
     const options = {
         hostname: hostname,
         port: port,
@@ -273,14 +276,13 @@ function httpPost(hostname, port, filePath, ogFilePath, bucket = 'default', key 
     postFile.on('end', () => {
         if (debug) { console.log(`Sent POST request with path: ${filePath}`); }
         postFile.close();
-        callback();
     });
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
     //create request
     const req = http.request(options);
     if (bucket) {req.setHeader('bucket', bucket);}
-    initRequest(req, false, undefined, true, false, { filePath: ogFilePath }, key, iv);
+    initRequest(req, false, undefined, true, false, { filePath: ogFilePath, callback: callback }, key, iv);
     //send request
     sendRequest(req, true, { readStream: form }, port);
 }
@@ -320,13 +322,12 @@ async function initMulticastClient(post = false, bucket = 'default') {
                 }
                 break;
             case 's':
-                if (validUUID(uuid) && intervals[uuid]) {
+                if (validUUID(uuid) && intervals[uuid] && !intervals[uuid]['intervalLock']) {
                     let filePath;
                     //record filepath
                     filePath = intervals[uuid]['filePath'];
-                    //clear uuid interval
-                    clearInterval(intervals[uuid]['interval']);
-                    delete intervals[uuid];
+                    //temporarily disable multicast messaging
+                    intervals[uuid]['intervalLock'] = true;
                     //upload file to server claiming to have space
                     if (!argv.noEncryption) {
                         const uuidKey = uuidv4().replace(/-/g, '');
@@ -338,20 +339,38 @@ async function initMulticastClient(post = false, bucket = 'default') {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
+                                    //clear uuid interval
+                                    clearInterval(intervals[uuid]['interval']);
+                                    delete intervals[uuid];
                                 });
                             } else {
                                 httpPut(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, () => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
+                                    //clear uuid interval
+                                    clearInterval(intervals[uuid]['interval']);
+                                    delete intervals[uuid];
                                 });
                             }
                         });
                     } else {
                         if (post) {
-                            httpPost(remote.address, port, filePath, filePath, bucket);
+                            httpPost(remote.address, port, filePath, filePath, bucket, undefined, undefined, success => {
+                                if (success) {
+                                    //clear uuid interval
+                                    clearInterval(intervals[uuid]['interval']);
+                                    delete intervals[uuid];
+                                } else {
+                                    intervals[uuid]['intervalLock'] = false;
+                                }
+                            });
                         } else {
-                            httpPut(remote.address, port, filePath, filePath, bucket);
+                            httpPut(remote.address, port, filePath, filePath, bucket, undefined, undefined, () => {
+                                //clear uuid interval
+                                clearInterval(intervals[uuid]['interval']);
+                                delete intervals[uuid];
+                            });
                         }
                     }
                 }
@@ -363,13 +382,15 @@ async function initMulticastClient(post = false, bucket = 'default') {
     if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
     multicastClient.bind(multicastPort, ipAddr);
 }
-function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined', callback: () => {} }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined' }, key = '', iv = '') {
+function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined', callback: () => {} }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined', callback: success => {} }, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
     });
     req.on('response', res => {
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
         if (res.statusCode === 200) {
+            getOptions.callback(); 
+            uploadOptions.callback(true);
             if (GET) {
                 //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
                 let path;
@@ -388,7 +409,6 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
                         });
                     }
                     writeStream.close();
-                    getOptions.callback();
                 });
                 res.pipe(writeStream);
             }
@@ -405,9 +425,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
                 }
             });
         } else {
-            if (PUT || POST) {
-                console.log(`FAILED: ${uploadOptions.filePath}`)
-            }
+            uploadOptions.callback(false);
         }
     });
 }
