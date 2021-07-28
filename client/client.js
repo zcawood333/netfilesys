@@ -128,17 +128,20 @@ async function getIterThroughArgs(args) {
             const uuid = arg.replace(/-/g, '');
             intervals[uuid] = {
                 interval: setInterval(() => {
-                    if (intervals[uuid]['attempts'] < numAttempts) {
-                        sendMulticastMsg('g' + uuid);
-                        intervals[uuid]['attempts']++;
-                    } else {
-                        if (debug) { console.log(`file with uuid: ${uuid} not found`); }
-                        if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
-                        clearInterval(intervals[uuid]['interval']);
-                        delete intervals[uuid];
-                        console.log(`FAILED: ${arg}`);
+                    if (!intervals[uuid]['intervalLock']) {
+                        if (intervals[uuid]['attempts'] < numAttempts) {
+                            sendMulticastMsg('g' + uuid);
+                            intervals[uuid]['attempts']++;
+                        } else {
+                            if (debug) { console.log(`file with uuid: ${uuid} not found`); }
+                            if (debug) { console.log(`now deleting interval for uuid: ${uuid}`); }
+                            clearInterval(intervals[uuid]['interval']);
+                            delete intervals[uuid];
+                            console.log(`FAILED: ${arg}`);
+                        }
                     }
                 }, attemptTimeout),
+                intervalLock: false,
                 attempts: 0,
                 key: key,
                 iv: iv,
@@ -173,7 +176,7 @@ function httpGet(hostname, port, fileUUID, key = '', iv = '', callback = () => {
         argv.outputFile.length > 0 &&
         !argv.outputFile.includes('.') &&
         Buffer.byteLength(argv.outputFile) < maxFileLengthBytes) {downloadFileName = argv.outputFile}
-    initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID, callback: callback }, false, false, key, iv);
+    initRequest(req, true, { downloadFileName: downloadFileName, serverUUID: fileUUID, callback: callback }, false, false, undefined, key, iv);
     sendRequest(req, undefined, undefined, port);
 }
 async function PUT() {
@@ -307,15 +310,21 @@ async function initMulticastClient(post = false, bucket = 'default') {
         switch (message.charAt(0)) {
             case 'h':
                 //validate uuid
-                if (validUUID(uuid) && intervals[uuid]) {
+                if (validUUID(uuid) && intervals[uuid] && !intervals[uuid]['intervalLock']) {
                     //record key and iv
                     const key = intervals[uuid]['key'];
                     const iv = intervals[uuid]['iv'];
+                    //temporarily disable multicast messaging
+                    intervals[uuid]['intervalLock'] = true;
                     //get file from server claiming to have it
-                    httpGet(remote.address, port, uuid, key, iv, () => {
-                        //clear uuid interval
-                        clearInterval(intervals[uuid]['interval']);
-                        delete intervals[uuid];
+                    httpGet(remote.address, port, uuid, key, iv, success => {
+                        if (success) {
+                            //clear uuid interval
+                            clearInterval(intervals[uuid]['interval']);
+                            delete intervals[uuid];
+                        } else {
+                            intervals[uuid]['intervalLock'] = false;
+                        }
                     });
                 }
                 break;
@@ -392,14 +401,14 @@ async function initMulticastClient(post = false, bucket = 'default') {
     if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
     multicastClient.bind(multicastPort, ipAddr);
 }
-function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined', callback: () => {} }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined', callback: success => {} }, key = '', iv = '') {
+function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloadFile', serverUUID: 'undefined', callback: (success) => {return} }, POST = false, PUT = false, uploadOptions = { filePath: 'undefined', callback: (success) => {return} }, key = '', iv = '') {
     req.on('error', err => {
         console.error(err)
     });
     req.on('response', res => {
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
         if (res.statusCode === 200) {
-            getOptions.callback(); 
+            getOptions.callback(true); 
             uploadOptions.callback(true);
             if (GET) {
                 //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
@@ -435,6 +444,7 @@ function initRequest(req, GET = false, getOptions = { downloadFileName: 'downloa
                 }
             });
         } else {
+            getOptions.callback(false);
             uploadOptions.callback(false);
         }
     });
