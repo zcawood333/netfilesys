@@ -186,7 +186,7 @@ async function PUT() {
     await uploadIterThroughArgs(args);
     closeMulticastClient(() => {return Object.keys(intervals).length === 0}, attemptTimeout);
 }
-function httpPut(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => { }) {
+function httpPut(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => {}) {
     const options = {
         hostname: hostname,
         port: port,
@@ -202,15 +202,13 @@ function httpPut(hostname, port, filePath, ogFilePath, bucket = 'default', key =
     }
     const req = http.request(options);
     if (bucket) {req.setHeader('bucket', bucket);}
-    initRequest(req, false, undefined, false, true, { filePath: ogFilePath }, key, iv);
+    initRequest(req, false, undefined, false, true, { filePath: ogFilePath, callback: callback }, key, iv);
     putFile.on('error', err => {
         console.error(err);
     });
     putFile.on('end', () => {
         if (debug) { console.log(`Sent PUT request with path: ${filePath}`); }
         putFile.close();
-        callback();
-
     });
     sendRequest(req, true, { readStream: putFile }, port);
 }
@@ -335,22 +333,30 @@ async function initMulticastClient(post = false, bucket = 'default') {
                         const encryptedFilePath = `${tempFilePath}${uuidKey}`;
                         aesEncrypt(filePath, encryptedFilePath, uuidKey, iv, () => {
                             if (post) {
-                                httpPost(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, () => {
+                                httpPost(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, success => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
-                                    //clear uuid interval
-                                    clearInterval(intervals[uuid]['interval']);
-                                    delete intervals[uuid];
+                                    if (success) {
+                                        //clear uuid interval
+                                        clearInterval(intervals[uuid]['interval']);
+                                        delete intervals[uuid];
+                                    } else {
+                                        intervals[uuid]['intervalLock'] = false;
+                                    }
                                 });
                             } else {
-                                httpPut(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, () => {
+                                httpPut(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, success => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
-                                    //clear uuid interval
-                                    clearInterval(intervals[uuid]['interval']);
-                                    delete intervals[uuid];
+                                    if (success) {
+                                        //clear uuid interval
+                                        clearInterval(intervals[uuid]['interval']);
+                                        delete intervals[uuid];
+                                    } else {
+                                        intervals[uuid]['intervalLock'] = false;
+                                    }
                                 });
                             }
                         });
@@ -366,10 +372,14 @@ async function initMulticastClient(post = false, bucket = 'default') {
                                 }
                             });
                         } else {
-                            httpPut(remote.address, port, filePath, filePath, bucket, undefined, undefined, () => {
-                                //clear uuid interval
-                                clearInterval(intervals[uuid]['interval']);
-                                delete intervals[uuid];
+                            httpPut(remote.address, port, filePath, filePath, bucket, undefined, undefined, success => {
+                                if (success) {
+                                    //clear uuid interval
+                                    clearInterval(intervals[uuid]['interval']);
+                                    delete intervals[uuid];
+                                } else {
+                                    intervals[uuid]['intervalLock'] = false;
+                                }
                             });
                         }
                     }
