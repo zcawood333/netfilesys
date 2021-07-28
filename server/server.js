@@ -52,7 +52,7 @@ app.get('/download/:uuid', (req, res) => {
             return false;
         }
     });
-
+    if (path === undefined) {return res.status(500).send(new Error('File not found'));}
     
     if (debug) {console.log(`path: ${path}`)};
 
