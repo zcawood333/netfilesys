@@ -163,10 +163,6 @@ function multicastGet(message, remote) {
     const path = uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (Object.values(buckets).some(bucket => {
         if (bucket.fileExists(path)) {
-            if (bucket.type === 'tmp') {
-                clearInterval(bucket.cleaner); //resetting timer for bucket cleaner so file isn't deleted between now and download time
-                bucket.cleaner = setInterval(bucket.cleanerFunc, bucket.cleanerPeriod);
-            }
             return true;
         } else {
             return false;
