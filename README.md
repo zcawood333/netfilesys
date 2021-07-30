@@ -22,11 +22,11 @@ Used by the client to asynchronously find and download files. Server responds vi
 Command line utility to upload and download files from a server.
 ### To Run
 node client.js help\
-node client.js GET \<filekey>...\
+node client.js GET \<fileKey>...\
 node client.js PUT \<fileToUpload>...\
 node client.js POST \<fileToUpload>...
-### Filekeys
-Filekeys are used by the GET command to retrieve a file from a server. They are stored in an upload log file.\
+### FileKeys
+FileKeys are used by the GET command to retrieve a file from a server. They are stored in an upload log file.\
 If the uploaded file was not encrypted, it is composed of the UUID the server returned during the upload.\
 If the file was encrypted, it is concatenated with a client-generated UUID and initialization vector used during encryption.
 ### Uploading files
@@ -35,14 +35,14 @@ Multiple files can be uploaded by specifying multiple file paths after the POST/
 Files are by default encrypted before they are uploaded. This can be overridden by setting the --noEncryption flag.
 #### Commands
 ##### PUT
-The PUT command will initiate an http PUT request to the server with the fileToUpload's encrypted contents as its body. It logs the event and the generated filekey.
+The PUT command will initiate an http PUT request to the server with the fileToUpload's encrypted contents as its body. It logs the event and the generated fileKey.
 ##### POST
-The POST command will initiate an HTTP POST request to the server with the fileToUpload's encrypted contents in a key:value pair encoded as multipart/form-data. It logs the event and the generated filekey.
+The POST command will initiate an HTTP POST request to the server with the fileToUpload's encrypted contents in a key:value pair encoded as multipart/form-data. It logs the event and the generated fileKey.
 ### Downloading files
-Multiple files can be downloaded by specifying multiple filekeys after the GET command.
+Multiple files can be downloaded by specifying multiple fileKeys after the GET command.
 #### Encryption
-The client determines whether or not the file was encrypted when uploaded depending on the filekey. Encrypted files are automatically decrypted when saved.
+The client determines whether or not the file was encrypted when uploaded depending on the fileKey. Encrypted files are automatically decrypted when saved.
 #### GET
-The GET command will parse the filekey for the server UUID, the client UUID, and the initialization vector. It then sends a multicast message to subscribed servers to look for the file. If a server responds that it has the file, the client initiates an HTTP GET request to that server, automatically decrypting the file if necessary, and saves it to an output file.
+The GET command will parse the fileKey for the server UUID, the client UUID, and the initialization vector. It then sends a multicast message to subscribed servers to look for the file. If a server responds that it has the file, the client initiates an HTTP GET request to that server, automatically decrypting the file if necessary, and saves it to an output file.
 ### Multicast
 The client uses multicast to asynchronously poll subscribed servers for files it wants to download. A server will respond if it has the file, allowing the client to directly request the file from that server.
