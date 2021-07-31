@@ -1,5 +1,9 @@
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+
 class _Request {
-    constructor(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, id) {
+    constructor(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, arg) {
         this.type = type;
         this.req = req;
         this.intervalFunc = intervalFunc;
@@ -12,7 +16,7 @@ class _Request {
                 if (this.attempts >= this.maxAttempts) {
                     clearInterval(this.interval);
                     this.failed = true;
-                    console.log(`FAILED: ${this.id}`)
+                    console.log(`FAILED: ${this.arg}`)
                 }
             }
         }, intervalPeriod);
@@ -20,7 +24,7 @@ class _Request {
         this.attempts = 0;
         this.hostname = hostname;
         this.port = port;
-        this.id = id; //filekey for get requests
+        this.arg = arg; //filekey for get requests
         this.failed = false;
     }
 }
@@ -53,4 +57,35 @@ class GetRequest extends _Request {
         }
     }
 }
-module.exports = { GetRequest };
+class _UploadRequest extends _Request {
+    constructor(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
+        super(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
+        this.checkFilePath(filePath);
+        this.bucket = bucket;
+        this.encrypted = encrypted;
+        this.filePath = filePath;
+        this.uuid = uuid;
+        this.fileSize = fileSize; //additional 8 bytes to account for possible aes encryption padding
+        this.readStream = null;
+        this.key = '';
+        this.iv = '';
+        if (this.encrypted) {
+            this.key = uuidv4().replace(/-/g, '');
+            this.iv = crypto.randomBytes(8).toString('hex');
+        }        
+    }
+    checkFilePath(filePath) {
+        if (!fs.existsSync(filePath)) {
+            throw new Error(`File path (${filePath}) does not exist`);
+        }
+    }
+}
+class PutRequest extends _UploadRequest {
+    constructor(intervalFunc = () => {}, intervalPeriod = 1000, maxAttempts = 0, req = null, hostname = '', port = null, bucket = 'default', encrypted = true, filePath = '', uuid = '', fileSize = null) {
+        super('PUT', intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize);
+    }
+}
+
+
+module.exports.GetRequest = GetRequest;
+module.exports.PutRequest = PutRequest;
