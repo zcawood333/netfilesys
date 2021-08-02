@@ -1,4 +1,4 @@
-#!/usr/local/bin/node
+#!/usr/bin/node
 
 const argv = processArgv(process.argv.slice(2));
 const http = require('http');
