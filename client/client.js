@@ -161,7 +161,7 @@ async function PUT() {
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
     }
-    await initMulticastClient(false);
+    await initMulticastClient();
     const args = argv._.slice(1);
     await uploadIterThroughArgs(args, false);
     closeMulticastClient(() => {
@@ -177,40 +177,12 @@ async function PUT() {
         return close;
     }, attemptTimeout);
 }
-function httpPut(reqObj, readPath, callback = () => {}) {
-    const options = {
-        hostname: reqObj.hostname,
-        port: reqObj.port,
-        path: '/upload',
-        method: 'PUT',
-    }
-    let putFile = undefined;
-    try {
-        putFile = fs.createReadStream(readPath);
-    } catch {
-        if (debug) { console.log(`Unable to read file path: ${readPath}`); }
-        return;
-    }
-    reqObj.req = http.request(options);
-    reqObj.req.setHeader('bucket', reqObj.bucket);
-    const fileName = readPath.split('/').slice(-1)[0];
-    reqObj.req.setHeader('fileName', fileName);
-    initRequest(reqObj, undefined, callback);
-    putFile.on('error', err => {
-        console.error(err);
-    });
-    putFile.on('end', () => {
-        if (debug) { console.log(`Sent PUT request reading from path: ${readPath}`); }
-        putFile.close();
-    });
-    sendRequest(reqObj, putFile);
-}
 async function POST() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
     }
-    await initMulticastClient(true);
+    await initMulticastClient();
     const args = argv._.slice(1);
     await uploadIterThroughArgs(args, true);
     closeMulticastClient(() => {
@@ -244,41 +216,45 @@ async function uploadIterThroughArgs(args, post = false) {
         }
     });
 }
-function httpPost(reqObj, readPath, callback = () => {}) {
+function httpUpload(reqObj, readPath, callback = () => { }) {
     const options = {
         hostname: reqObj.hostname,
         port: reqObj.port,
         path: '/upload',
-        method: 'POST'
+        method: reqObj.type,
     }
-    //format file data
-    const form = new formData();
-    let postFile = undefined;
+    let form = undefined;
+    if (reqObj.type === 'POST') {
+        form = new formData();
+    }
+    let uploadFile = undefined;
     try {
-        postFile = fs.createReadStream(readPath);
-        postFile.on('error', err => {
+        uploadFile = fs.createReadStream(readPath);
+        uploadFile.on('error', err => {
             console.error(err);
         });
-        postFile.on('end', () => {
-            if (debug) { console.log(`Sent POST request with path: ${readPath}`); }
-            postFile.close();
+        uploadFile.on('end', () => {
+            if (debug) { console.log(`Sent ${reqObj.type} request reading from path: ${readPath}`); }
+            uploadFile.close();
         });
-        if (debug) { console.log('postFile: ', postFile); }
     } catch {
         if (debug) { console.log(`Unable to read file path: ${readPath}`); }
         return;
     }
-    form.append('fileKey', postFile);
-    options.headers = form.getHeaders();
-    console.log(options.headers);
-    //create request
+    if (reqObj.type === 'POST') {
+        form.append('fileKey', uploadFile);
+        options.headers = form.getHeaders();
+    }
     reqObj.req = http.request(options);
     reqObj.req.setHeader('bucket', reqObj.bucket);
+    if (reqObj.type === 'PUT') {
+        const fileName = readPath.split('/').slice(-1)[0];
+        reqObj.req.setHeader('fileName', fileName);
+    }
     initRequest(reqObj, undefined, callback);
-    //send request
-    sendRequest(reqObj, form);
+    sendRequest(reqObj, reqObj.type === 'PUT' ? uploadFile : form);
 }
-async function initMulticastClient(post = false) {
+async function initMulticastClient() {
     multicastClient.on('error', err => {
         console.error(err);
     })
@@ -332,56 +308,29 @@ async function initMulticastClient(post = false) {
                     if (reqObj.encrypted) {
                         const encryptedFilePath = `${tempFilePath}${reqObj.key}`;
                         aesEncrypt(reqObj.filePath, encryptedFilePath, reqObj.key, reqObj.iv, () => {
-                            if (post) {
-                                httpPost(reqObj, encryptedFilePath, success => {
-                                    fs.rm(encryptedFilePath, () => {
-                                        if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
-                                    });
-                                    if (success) {
-                                        //clear uuid interval
-                                        clearInterval(reqObj.interval);
-                                        delete requests[uuid];
-                                    } else {
-                                        reqObj.intervalLock = false;
-                                    }
+                            httpUpload(reqObj, encryptedFilePath, success => {
+                                fs.rm(encryptedFilePath, () => {
+                                    if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                 });
-                            } else {
-                                httpPut(reqObj, encryptedFilePath, success => {
-                                    fs.rm(encryptedFilePath, () => {
-                                        if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
-                                    });
-                                    if (success) {
-                                        //clear uuid interval
-                                        clearInterval(reqObj.interval);
-                                        delete requests[uuid];
-                                    } else {
-                                        reqObj.intervalLock = false;
-                                    }
-                                });
-                            }
+                                if (success) {
+                                    //clear uuid interval
+                                    clearInterval(reqObj.interval);
+                                    delete requests[uuid];
+                                } else {
+                                    reqObj.intervalLock = false;
+                                }
+                            });
                         });
                     } else {
-                        if (post) {
-                            httpPost(reqObj, reqObj.filePath, success => {
-                                if (success) {
-                                    //clear uuid interval
-                                    clearInterval(reqObj.interval);
-                                    delete requests[uuid];
-                                } else {
-                                    reqObj.intervalLock = false;
-                                }
-                            });
-                        } else {
-                            httpPut(reqObj, reqObj.filePath, success => {
-                                if (success) {
-                                    //clear uuid interval
-                                    clearInterval(reqObj.interval);
-                                    delete requests[uuid];
-                                } else {
-                                    reqObj.intervalLock = false;
-                                }
-                            });
-                        }
+                        httpUpload(reqObj, reqObj.filePath, success => {
+                            if (success) {
+                                //clear uuid interval
+                                clearInterval(reqObj.interval);
+                                delete requests[uuid];
+                            } else {
+                                reqObj.intervalLock = false;
+                            }
+                        });
                     }
                 }
                 break;
