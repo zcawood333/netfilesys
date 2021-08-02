@@ -1,4 +1,4 @@
-//server.js
+#!/usr/bin/node
 
 const argv = processArgv(process.argv.slice(2));
 const express = require('express');
