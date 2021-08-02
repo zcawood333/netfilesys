@@ -20,7 +20,7 @@ const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'datetime']
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores fileKeys (serverUUID + clientKey + clientIV) and the datetime
 const downloadLogFormat = {columns: ['uuid','datetime']} //used to create log file if missing
 const maxFileLengthBytes = 255;
-const { GetRequest, PutRequest } = require('./requests');
+const { GetRequest, PutRequest, PostRequest } = require('./requests');
 
 //command based implementation defaults
 let requests = {};
@@ -161,9 +161,9 @@ async function PUT() {
     if (argv._.length < 2) {
         throw new Error('Usage: PUT <filePath>...');
     }
-    await initMulticastClient(false, argv.bucket);
+    await initMulticastClient(false);
     const args = argv._.slice(1);
-    await uploadIterThroughArgs(args);
+    await uploadIterThroughArgs(args, false);
     closeMulticastClient(() => {
         const keys = Object.keys(requests);
         let close = true;
@@ -208,17 +208,33 @@ async function POST() {
     if (argv._.length < 2) {
         throw new Error('Usage: POST <filePath>...');
     }
-    await initMulticastClient(true, argv.bucket);
+    await initMulticastClient(true);
     const args = argv._.slice(1);
-    await uploadIterThroughArgs(args);
-    closeMulticastClient(() => {return Object.keys(requests).length === 0}, attemptTimeout);
+    await uploadIterThroughArgs(args, true);
+    closeMulticastClient(() => {
+        const keys = Object.keys(requests);
+        let close = true;
+        for(let i = 0; i < keys.length; i++) {
+            if (requests[keys[i]].failed) {
+                delete requests[keys[i]];
+            } else {
+                close = false;
+            }
+        }
+        return close;
+    }, attemptTimeout);
 }
-async function uploadIterThroughArgs(args) {
+async function uploadIterThroughArgs(args, post = false) {
     args.forEach(arg => {
         try {
             const fileSize = fs.statSync(arg).size + 8;
             const uuid = uuidv4().replace(/-/g, '');
-            const reqObj = new PutRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, 200, 8, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
+            let reqObj = null;
+            if (post) {
+                reqObj = new PostRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, 200, 8, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
+            } else {
+                reqObj = new PutRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, 200, 8, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
+            }
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -226,10 +242,10 @@ async function uploadIterThroughArgs(args) {
         }
     });
 }
-function httpPost(hostname, port, filePath, ogFilePath, bucket = 'default', key = '', iv = '', callback = () => {}) {
+function httpPost(reqObj, readPath, callback = () => {}) {
     const options = {
-        hostname: hostname,
-        port: port,
+        hostname: reqObj.hostname,
+        port: reqObj.port,
         path: '/upload',
         method: 'POST'
     }
@@ -237,28 +253,30 @@ function httpPost(hostname, port, filePath, ogFilePath, bucket = 'default', key 
     const form = new formData();
     let postFile = undefined;
     try {
-        postFile = fs.createReadStream(filePath);
+        postFile = fs.createReadStream(readPath);
+        postFile.on('error', err => {
+            console.error(err);
+        });
+        postFile.on('end', () => {
+            if (debug) { console.log(`Sent POST request with path: ${readPath}`); }
+            postFile.close();
+        });
+        if (debug) { console.log('postFile: ', postFile); }
     } catch {
-        if (debug) { console.log(`Unable to read file path: ${filePath}`); }
+        if (debug) { console.log(`Unable to read file path: ${readPath}`); }
         return;
     }
-    postFile.on('error', err => {
-        console.error(err);
-    });
-    postFile.on('end', () => {
-        if (debug) { console.log(`Sent POST request with path: ${filePath}`); }
-        postFile.close();
-    });
     form.append('fileKey', postFile);
     options.headers = form.getHeaders();
+    console.log(options.headers);
     //create request
-    const req = http.request(options);
-    if (bucket) {req.setHeader('bucket', bucket);}
-    initRequest(req, false, undefined, true, false, { filePath: ogFilePath, callback: callback }, key, iv);
+    reqObj.req = http.request(options);
+    reqObj.req.setHeader('bucket', reqObj.bucket);
+    initRequest(reqObj, undefined, callback);
     //send request
-    sendRequest(req, true, { readStream: form }, port);
+    sendRequest(reqObj, form);
 }
-async function initMulticastClient(post = false, bucket = 'default') {
+async function initMulticastClient(post = false) {
     multicastClient.on('error', err => {
         console.error(err);
     })
@@ -313,16 +331,16 @@ async function initMulticastClient(post = false, bucket = 'default') {
                         const encryptedFilePath = `${tempFilePath}${reqObj.key}`;
                         aesEncrypt(reqObj.filePath, encryptedFilePath, reqObj.key, reqObj.iv, () => {
                             if (post) {
-                                httpPost(remote.address, port, encryptedFilePath, filePath, bucket, uuidKey, iv, success => {
+                                httpPost(reqObj, encryptedFilePath, success => {
                                     fs.rm(encryptedFilePath, () => {
                                         if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
                                     });
                                     if (success) {
                                         //clear uuid interval
-                                        clearInterval(requests[uuid]['interval']);
+                                        clearInterval(reqObj.interval);
                                         delete requests[uuid];
                                     } else {
-                                        requests[uuid]['intervalLock'] = false;
+                                        reqObj.intervalLock = false;
                                     }
                                 });
                             } else {
@@ -332,33 +350,33 @@ async function initMulticastClient(post = false, bucket = 'default') {
                                     });
                                     if (success) {
                                         //clear uuid interval
-                                        clearInterval(requests[uuid].interval);
+                                        clearInterval(reqObj.interval);
                                         delete requests[uuid];
                                     } else {
-                                        requests[uuid].intervalLock = false;
+                                        reqObj.intervalLock = false;
                                     }
                                 });
                             }
                         });
                     } else {
                         if (post) {
-                            httpPost(remote.address, port, filePath, filePath, bucket, undefined, undefined, success => {
+                            httpPost(reqObj, reqObj.filePath, success => {
                                 if (success) {
                                     //clear uuid interval
-                                    clearInterval(requests[uuid]['interval']);
+                                    clearInterval(reqObj.interval);
                                     delete requests[uuid];
                                 } else {
-                                    requests[uuid]['intervalLock'] = false;
+                                    reqObj.intervalLock = false;
                                 }
                             });
                         } else {
                             httpPut(reqObj, reqObj.filePath, success => {
                                 if (success) {
                                     //clear uuid interval
-                                    clearInterval(requests[uuid].interval);
+                                    clearInterval(reqObj.interval);
                                     delete requests[uuid];
                                 } else {
-                                    requests[uuid].intervalLock = false;
+                                    reqObj.intervalLock = false;
                                 }
                             });
                         }
