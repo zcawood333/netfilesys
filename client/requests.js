@@ -3,8 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 
 class _Request {
-    constructor(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, arg) {
-        this.type = type;
+    constructor(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, arg) {
+        this.method = method;
         this.req = req;
         this.intervalFunc = intervalFunc;
         this.intervalPeriod = intervalPeriod;
@@ -58,8 +58,8 @@ class GetRequest extends _Request {
     }
 }
 class _UploadRequest extends _Request {
-    constructor(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
-        super(type, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
+    constructor(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
+        super(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
         this.checkFilePath(filePath);
         this.bucket = bucket;
         this.encrypted = encrypted;

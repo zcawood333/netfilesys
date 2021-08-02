@@ -221,10 +221,10 @@ function httpUpload(reqObj, readPath, callback = () => { }) {
         hostname: reqObj.hostname,
         port: reqObj.port,
         path: '/upload',
-        method: reqObj.type,
+        method: reqObj.method,
     }
     let form = undefined;
-    if (reqObj.type === 'POST') {
+    if (reqObj.method === 'POST') {
         form = new formData();
     }
     let uploadFile = undefined;
@@ -234,25 +234,25 @@ function httpUpload(reqObj, readPath, callback = () => { }) {
             console.error(err);
         });
         uploadFile.on('end', () => {
-            if (debug) { console.log(`Sent ${reqObj.type} request reading from path: ${readPath}`); }
+            if (debug) { console.log(`Sent ${reqObj.method} request reading from path: ${readPath}`); }
             uploadFile.close();
         });
     } catch {
         if (debug) { console.log(`Unable to read file path: ${readPath}`); }
         return;
     }
-    if (reqObj.type === 'POST') {
+    if (reqObj.method === 'POST') {
         form.append('fileKey', uploadFile);
         options.headers = form.getHeaders();
     }
     reqObj.req = http.request(options);
     reqObj.req.setHeader('bucket', reqObj.bucket);
-    if (reqObj.type === 'PUT') {
+    if (reqObj.method === 'PUT') {
         const fileName = readPath.split('/').slice(-1)[0];
         reqObj.req.setHeader('fileName', fileName);
     }
     initRequest(reqObj, undefined, callback);
-    sendRequest(reqObj, reqObj.type === 'PUT' ? uploadFile : form);
+    sendRequest(reqObj, reqObj.method === 'PUT' ? uploadFile : form);
 }
 async function initMulticastClient() {
     multicastClient.on('error', err => {
@@ -350,7 +350,7 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
         if (res.statusCode === 200) {
             getCallback(true); 
             uploadCallback(true);
-            if (reqObj.type === 'GET') {
+            if (reqObj.method === 'GET') {
                 //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
                 let path;
                 if (reqObj.encrypted) { path = `${tempFilePath}${reqObj.downloadFileName}` } //path goes to a temp file first to get decrypted
@@ -373,11 +373,11 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
             }
             res.on('data', d => {
                 if (debug) { console.log('data: ', d.toString()); }
-                if (reqObj.type === 'GET') {
+                if (reqObj.method === 'GET') {
                     logDownload(reqObj, () => {
                         if (debug) { console.log(`file download logged successfully`); }
                     });
-                } else if (reqObj.type === 'POST' || reqObj.type === 'PUT') {
+                } else if (reqObj.method === 'POST' || reqObj.method === 'PUT') {
                     logUpload(reqObj, d, () => {
                         if (debug) { console.log(`file upload logged successfully`); }
                     });
@@ -392,7 +392,7 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
 function logUpload(reqObj, serverUUID, callback = () => { }) {
     validateLogFile(uploadLogPath, uploadLogFormat);
     const today = new Date(Date.now());
-    fs.appendFile(uploadLogPath, `${reqObj.type},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
+    fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
 }
 function logDownload(reqObj, callback = () => { }) { 
     validateLogFile(downloadLogPath, downloadLogFormat);
@@ -480,7 +480,7 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from client
     if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
 }
 function sendRequest(reqObj, readStream = null) {
-    switch(reqObj.type) {
+    switch(reqObj.method) {
         case 'GET':
             reqObj.req.end();
             break;
@@ -489,7 +489,7 @@ function sendRequest(reqObj, readStream = null) {
             readStream.pipe(reqObj.req);
             break;
         default:
-            throw new Error(`${reqObj.type} is an invalid request type`);
+            throw new Error(`${reqObj.method} is an invalid request type`);
             break;
     }
     if (debug) {console.log("Sent ", reqObj.req.method, " request to ", reqObj.req.host, ":", reqObj.port)}
