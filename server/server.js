@@ -274,7 +274,8 @@ function uploadDirectFile(req, res) {
     req.on('end', () => {
         validateLogFile(uploadLogPath, uploadLogFormat);
         const today = new Date(Date.now());
-        fs.appendFile(uploadLogPath, `PUT,,${noDashesUUID},${today.toISOString()}\n`, err => {
+        const fileName = req.get('fileName');
+        fs.appendFile(uploadLogPath, `PUT,${fileName ? fileName : ''},${noDashesUUID},${today.toISOString()}\n`, err => {
             if (err) {
                 if (debug) {console.log('file unable to be uploaded (3)', err)};
                 fs.rm(path, err => {
