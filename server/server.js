@@ -41,62 +41,7 @@ app.get('/exist', (req, res) => {
 });
 
 app.get('/download/:uuid', (req, res) => {
-    if (debug) {console.log('GET request: ', req.params)};
-    const parsedUUIDPath = req.params.uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
-    let path = undefined;
-    Object.values(buckets).some(bucket => {
-        if (bucket.fileExists(parsedUUIDPath)) {
-            path = `${uploadsDir}${bucket.mountPoint}${parsedUUIDPath}`;
-            return true;
-        } else {
-            return false;
-        }
-    });
-    if (path === undefined) {return res.status(500).send(new Error('File not found'));}
-    
-    if (debug) {console.log(`path: ${path}`)};
-
-    validateLogFile(downloadLogPath, downloadLogFormat);
-    const today = new Date(Date.now());
-    fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
-        if (err) {
-            if (debug) {console.log('file download unable to be logged, and therefore will not be downloaded', err)};
-            return res.status(500).send(err);
-        } else {
-            res.download(path, err => {
-                if (err) {
-                    if (debug) {console.log('file unable to be downloaded', err)};
-
-                    //remove last line from log file
-                    fs.readFile(downloadLogPath, (err, data) => {
-                        if (err) {
-                            if (debug) {console.log('download log file unable to be modified; most recent log is invalid')};
-                        } else {
-                            console.log(data);
-                            //need to slice to -2 because there is a new line character after last entry
-                            const newData = data.toString().split('\n').slice(0,-2).join('\n') + '\n';
-                            fs.writeFile(downloadLogPath, newData, err => {
-                                if (err) {
-                                    if (debug) {console.log('download log file unable to be written to; it may now be corrupted')};
-                                } else {
-                                    if (debug) {console.log('download log file updated to remove bad download line')};
-                                }
-                            });
-                        }
-                    });
-
-                    //normally returns full path which may be undesirable to leak so path is reset
-                    err.path = req.params.uuid;
-                    return res.status(500).send(err);
-                } else {
-                    if (debug) {
-                        console.log('file downloaded successfully');
-                        console.log('file download logged successfully');
-                    }
-                }
-            })
-        }
-    });
+    downloadFile(req, res);
 });
 
 app.put('/upload', (req, res) => {
@@ -159,7 +104,6 @@ function sendMulticastMsg(msg = 'this is a sample multicast message (from server
 }
 function multicastGet(message, remote) {
     const uuid = message.toString().slice(1);
-    if (debug) {console.log(`parsed uuid: ${uuid}`)}
     const path = uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
     if (Object.values(buckets).some(bucket => {
         if (bucket.fileExists(path)) {
@@ -192,7 +136,7 @@ function uploadMultipartFile(req, res) {
         return res.status(400).send('No files were uploaded.');
     }
     
-    const noDashesUUID = genUUID();
+    const noDashesUUID = genDashlessUUID();
     let path;
     try {
         path = createPath(noDashesUUID, req);
@@ -235,7 +179,7 @@ function uploadDirectFile(req, res) {
         console.log('PUT request body: ', req.body);
     }
     //generate and parse uuid/filepath
-    const noDashesUUID = genUUID();
+    const noDashesUUID = genDashlessUUID();
     let path;
     try {
         path = createPath(noDashesUUID, req);
@@ -295,11 +239,67 @@ function uploadDirectFile(req, res) {
     });
     req.pipe(fileStream); 
 }
-function genUUID() {
+function downloadFile(req, res) {
+    if (debug) {console.log('GET request: ', req.params)};
+    const parsedUUIDPath = req.params.uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    let path = undefined;
+    Object.values(buckets).some(bucket => {
+        if (bucket.fileExists(parsedUUIDPath)) {
+            path = `${uploadsDir}${bucket.mountPoint}${parsedUUIDPath}`;
+            return true;
+        } else {
+            return false;
+        }
+    });
+    if (path === undefined) {return res.status(500).send(new Error('File not found'));}
+    
+    if (debug) {console.log(`path: ${path}`)};
+
+    validateLogFile(downloadLogPath, downloadLogFormat, () => {
+        const today = new Date(Date.now());
+        fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
+            if (err) {
+                if (debug) {console.log('file download unable to be logged', err)};
+                return res.status(500).send(err);
+            } else {
+                res.download(path, err => {
+                    if (err) {
+                        if (debug) {console.log('file unable to be downloaded', err)};
+                        //remove last line from log file
+                        deleteLastDownloadLog();
+                        //normally returns full path which may be undesirable to leak so path is reset
+                        err.path = req.params.uuid;
+                        return res.status(500).send(err);
+                    } else {
+                        if (debug) {
+                            console.log('file downloaded/logged successfully');
+                        }
+                    }
+                })
+            }
+        });
+    });
+}
+function deleteLastDownloadLog() {
+    fs.readFile(downloadLogPath, (err, data) => {
+        if (err) {
+            if (debug) {console.log('download log file unable to be modified; most recent log is invalid')};
+        } else {
+            //need to slice to -2 because there is a new line character after last entry
+            const newData = data.toString().split('\n').slice(0,-2).join('\n') + '\n';
+            fs.writeFile(downloadLogPath, newData, err => {
+                if (err) {
+                    if (debug) {console.log('download log file unable to be written to; it may now be corrupted')};
+                } else {
+                    if (debug) {console.log('download log file updated to remove bad download line')};
+                }
+            });
+        }
+    });
+}
+function genDashlessUUID() { //returns a dashless uuid
     const ogUUID = uuidv4();
-    if (debug) {console.log(`uuid: ${ogUUID}`)};
     const noDashesUUID = ogUUID.replace(/-/g,'');
-    if (debug) {console.log(`uuid without dashes: ${noDashesUUID}`)};
     return noDashesUUID;
 }
 function createPath(noDashesUUID, req) {
@@ -314,19 +314,23 @@ function createPath(noDashesUUID, req) {
     }
     return fullPath;
 }
-function validateLogFile(path, format) {
+function validateLogFile(path, format, callback = () => { }) {
     const logDir = path.split('/').slice(0, -1).join('/');
-    validateDirPath(logDir);
-    if (!fs.existsSync(path)) {
-        fs.appendFileSync(path, format.columns.join(',') + '\n');
-        if (debug) {console.log('created log file: ' + path);}
-    }
+    validateDirPath(logDir, () => {
+        if (!fs.existsSync(path)) {
+            fs.appendFileSync(path, format.columns.join(',') + '\n');
+            if (debug) {console.log('created log file: ' + path);}
+        }
+        callback();
+    });
+    
 }
-function validateDirPath(dirPath) {
+function validateDirPath(dirPath, callback = () => { }) {
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
         if (debug) {console.log('created dir path: ' + dirPath);}
     }
+    callback();
 }
 function processArgv(args) {
     let argv = {_: []};
