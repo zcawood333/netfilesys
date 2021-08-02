@@ -555,7 +555,7 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
 }
 function commandArgsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
-    if (argv.bucket && !(typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.warn('Invalid bucket ==> using default');}
+    if (argv.bucket !== undefined && !(typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.error('Invalid bucket ==> using default');}
 }
 function flagArgsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
