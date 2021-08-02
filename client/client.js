@@ -193,6 +193,8 @@ function httpPut(reqObj, readPath, callback = () => {}) {
     }
     reqObj.req = http.request(options);
     reqObj.req.setHeader('bucket', reqObj.bucket);
+    const fileName = readPath.split('/').slice(-1)[0];
+    reqObj.req.setHeader('fileName', fileName);
     initRequest(reqObj, undefined, callback);
     putFile.on('error', err => {
         console.error(err);
