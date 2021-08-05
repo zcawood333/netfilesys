@@ -64,6 +64,7 @@ class _UploadRequest extends _Request {
         this.bucket = bucket;
         this.encrypted = encrypted;
         this.filePath = filePath;
+        this.fileName = filePath.split('/').slice(-1)[0];
         this.uuid = uuid;
         this.fileSize = fileSize; //additional 8 bytes to account for possible aes encryption padding
         this.readStream = null;
