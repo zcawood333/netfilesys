@@ -227,32 +227,30 @@ function httpUpload(reqObj, readPath, callback = () => { }) {
     if (reqObj.method === 'POST') {
         form = new formData();
     }
-    let uploadFile = undefined;
     try {
-        uploadFile = fs.createReadStream(readPath);
-        uploadFile.on('error', err => {
+        reqObj.readStream = fs.createReadStream(readPath);
+        reqObj.readStream.on('error', err => {
             console.error(err);
         });
-        uploadFile.on('end', () => {
+        reqObj.readStream.on('end', () => {
             if (debug) { console.log(`Sent ${reqObj.method} request reading from path: ${readPath}`); }
-            uploadFile.close();
+            reqObj.readStream.close();
         });
     } catch {
         if (debug) { console.log(`Unable to read file path: ${readPath}`); }
         return;
     }
     if (reqObj.method === 'POST') {
-        form.append('fileKey', uploadFile);
+        form.append('fileKey', reqObj.readStream);
         options.headers = form.getHeaders();
     }
     reqObj.req = http.request(options);
     reqObj.req.setHeader('bucket', reqObj.bucket);
     if (reqObj.method === 'PUT') {
-        const fileName = readPath.split('/').slice(-1)[0];
-        reqObj.req.setHeader('fileName', fileName);
+        reqObj.req.setHeader('fileName', reqObj.fileName);
     }
     initRequest(reqObj, undefined, callback);
-    sendRequest(reqObj, reqObj.method === 'PUT' ? uploadFile : form);
+    sendRequest(reqObj, reqObj.method === 'PUT' ? reqObj.readStream : form);
 }
 async function initMulticastClient() {
     multicastClient.on('error', err => {
