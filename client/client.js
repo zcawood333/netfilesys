@@ -16,7 +16,7 @@ const attemptTimeout = 200; // milliseconds attempt will wait before trying agai
 const getDownloadPath = `${__dirname}/downloads/`; //where files from GET are stored
 const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), fileKeys (serverUUID + clientKey + clientIV), and the datetime
-const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'datetime']} //used to create log file if missing
+const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'bucket', 'datetime']} //used to create log file if missing
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores fileKeys (serverUUID + clientKey + clientIV) and the datetime
 const downloadLogFormat = {columns: ['uuid','datetime']} //used to create log file if missing
 const maxFileLengthBytes = 255;
@@ -390,7 +390,7 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
 function logUpload(reqObj, serverUUID, callback = () => { }) {
     validateLogFile(uploadLogPath, uploadLogFormat);
     const today = new Date(Date.now());
-    fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
+    fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);
 }
 function logDownload(reqObj, callback = () => { }) { 
     validateLogFile(downloadLogPath, downloadLogFormat);
