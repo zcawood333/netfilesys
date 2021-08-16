@@ -22,7 +22,11 @@ const downloadLogFormat = {columns: ['uuid','datetime']};
 const buckets = require('./buckets').initBuckets();
 
 //testing variables
-const debug = true;
+let debug = false;
+if (argv.debug) {
+    debug = true;
+    console.log('DEBUG OUTPUT ON');
+}
 
 //Defaults
 let multicastPort = 5001;
