@@ -148,13 +148,18 @@ function httpGet(reqObj, callback = () => {}) {
         method: 'GET'
     }
     reqObj.req = http.request(options);
-    if (argv.outputFile && 
-        typeof argv.outputFile === "string" && 
-        argv.outputFile.length > 0 &&
-        !argv.outputFile.includes('.') &&
-        Buffer.byteLength(argv.outputFile) < maxFileLengthBytes) {reqObj.downloadFileName = argv.outputFile}
+    if (validOutputFile(argv.outputFile)) {reqObj.downloadFileName = argv.outputFile}
+    else if (argv.outputFile) {console.log(`Invalid output file, using filekey: ${reqObj.downloadFileName}`)}
     initRequest(reqObj, callback, undefined);
     sendRequest(reqObj, undefined);
+}
+function validOutputFile(filePath) {
+    if (filePath && 
+        typeof filePath === "string" && 
+        filePath.length > 0 &&
+        !filePath.includes('.') &&
+        Buffer.byteLength(filePath) < maxFileLengthBytes) {return true}
+    return false;
 }
 async function PUT() {
     //check arg to see if it is a valid filePath
