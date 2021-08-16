@@ -241,7 +241,7 @@ function httpUpload(reqObj, readPath, callback = () => { }) {
         return;
     }
     if (reqObj.method === 'POST') {
-        form.append('fileKey', reqObj.readStream);
+        form.append('fileKey', reqObj.readStream, reqObj.fileName);
         options.headers = form.getHeaders();
     }
     reqObj.req = http.request(options);
