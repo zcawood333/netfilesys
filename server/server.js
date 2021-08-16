@@ -158,7 +158,7 @@ function uploadMultipartFile(req, res) {
             if (debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
             validateLogFile(uploadLogPath, uploadLogFormat);
             const today = new Date(Date.now());
-            fs.appendFile(uploadLogPath, `POST,${fp.name},${noDashesUUID},${today.toISOString()}\n`, err => {
+            fs.appendFile(uploadLogPath, `POST,${fp.name},${noDashesUUID},${req.get('bucket')},${today.toISOString()}\n`, err => {
                 if (err) {
                     if (debug) {console.log('file unable to be uploaded (2)', err)};
                     fs.rm(path, err => {
@@ -224,7 +224,7 @@ function uploadDirectFile(req, res) {
         validateLogFile(uploadLogPath, uploadLogFormat);
         const today = new Date(Date.now());
         const fileName = req.get('fileName');
-        fs.appendFile(uploadLogPath, `PUT,${fileName ? fileName : ''},${noDashesUUID},${today.toISOString()}\n`, err => {
+        fs.appendFile(uploadLogPath, `PUT,${fileName ? fileName : ''},${noDashesUUID},${req.get('bucket')},${today.toISOString()}\n`, err => {
             if (err) {
                 if (debug) {console.log('file unable to be uploaded (3)', err)};
                 fs.rm(path, err => {
