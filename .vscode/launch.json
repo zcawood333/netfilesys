@@ -276,6 +276,16 @@
             "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=tmp4"]
         },
         {
+            "name": "Client PUT ('quick' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=quick"]
+        },
+        {
             "name": "Client PUT (file doesn't exist)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
@@ -408,6 +418,16 @@
             ],
             "type": "pwa-node",
             "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=tmp4"]
+        },
+        {
+            "name": "Client POST ('quick' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--noEncryption", "--bucket=quick"]
         },
         {
             "name": "Client POST (file doesn't exist)",
