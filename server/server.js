@@ -375,7 +375,6 @@ function bucketHandler(bucket) {
             buckets[bucket].sync();
             break;
         case 'std':
-        case 'tmp':
         case 'default':
             break;
         default:
