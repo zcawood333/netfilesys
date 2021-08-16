@@ -374,11 +374,7 @@ function bucketHandler(bucket) {
         case 'quick':
             buckets[bucket].sync();
             break;
-        case 'std':
-        case 'default':
-            break;
         default:
-            throw new Error(`Invalid bucket: ${bucket}`);
             break;
     }
 }
