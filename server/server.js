@@ -14,7 +14,7 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const ipAddr = require('ip').address();
 const backlog = 5;
-const uploadsDir = `${__dirname}/uploads/`;
+const uploadsDir = `${__dirname}/uploads`;
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
 const uploadLogFormat = {columns: ['method','filename','uuid','datetime']}
 const downloadLogPath = `${__dirname}/logs/download_log.csv`;
@@ -168,6 +168,7 @@ function uploadMultipartFile(req, res) {
                 } else {
                     if (debug) {console.log('file upload logged successfully')};
                     res.send(noDashesUUID);
+                    bucketHandler(req.get('bucket'));
                 };
             });
         };
@@ -234,6 +235,7 @@ function uploadDirectFile(req, res) {
                 if (debug) {console.log('file upload logged successfully')};
                 res.send(noDashesUUID);
                 fileStream.close();
+                bucketHandler(req.get('bucket'));
             }
         });
     });
@@ -241,20 +243,52 @@ function uploadDirectFile(req, res) {
 }
 function downloadFile(req, res) {
     if (debug) {console.log('GET request: ', req.params)};
-    const parsedUUIDPath = req.params.uuid.replace(/-/g,'').replace(/(.{3})/g, "$1/");
+    const uuid = req.params.uuid.replace(/-/g,'');
     let path = undefined;
-    Object.values(buckets).some(bucket => {
-        if (bucket.fileExists(parsedUUIDPath)) {
-            path = `${uploadsDir}${bucket.mountPoint}${parsedUUIDPath}`;
-            return true;
-        } else {
-            return false;
-        }
-    });
-    if (path === undefined) {return res.status(500).send(new Error('File not found'));}
+    if (Object.keys(buckets['quick'].files).includes(uuid)) {
+        quickDownload(req, res, buckets['quick'].files[uuid]);
+    } else {
+        Object.values(buckets).some(bucket => {
+            if (bucket === 'quick') {return false;}
+            const parsedUUIDPath = uuid.replace(/(.{3})/g, "$1/");
+            if (bucket.fileExists(parsedUUIDPath)) {
+                path = `${uploadsDir}/${bucket.mountPoint}/${parsedUUIDPath}`;
+                return true;
+            } else {
+                return false;
+            }
+        });
+        if (path === undefined) {return res.status(500).send(new Error('File not found'));}
+        
+        if (debug) {console.log(`path: ${path}`)};
     
-    if (debug) {console.log(`path: ${path}`)};
-
+        validateLogFile(downloadLogPath, downloadLogFormat, () => {
+            const today = new Date(Date.now());
+            fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
+                if (err) {
+                    if (debug) {console.log('file download unable to be logged', err)};
+                    return res.status(500).send(err);
+                } else {
+                    res.download(path, err => {
+                        if (err) {
+                            if (debug) {console.log('file unable to be downloaded', err)};
+                            //remove last line from log file
+                            deleteLastDownloadLog();
+                            //normally returns full path which may be undesirable to leak so path is reset
+                            err.path = req.params.uuid;
+                            return res.status(500).send(err);
+                        } else {
+                            if (debug) {
+                                console.log('file downloaded/logged successfully');
+                            }
+                        }
+                    })
+                }
+            });
+        });
+    }
+}
+function quickDownload(req, res, fileContents) {
     validateLogFile(downloadLogPath, downloadLogFormat, () => {
         const today = new Date(Date.now());
         fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
@@ -262,20 +296,19 @@ function downloadFile(req, res) {
                 if (debug) {console.log('file download unable to be logged', err)};
                 return res.status(500).send(err);
             } else {
-                res.download(path, err => {
-                    if (err) {
-                        if (debug) {console.log('file unable to be downloaded', err)};
-                        //remove last line from log file
-                        deleteLastDownloadLog();
-                        //normally returns full path which may be undesirable to leak so path is reset
-                        err.path = req.params.uuid;
-                        return res.status(500).send(err);
-                    } else {
-                        if (debug) {
-                            console.log('file downloaded/logged successfully');
-                        }
+                try {
+                    res.status(200).send(fileContents);
+                    if (debug) {
+                        console.log('file downloaded/logged successfully');
                     }
-                })
+                } catch(err) {
+                    if (debug) {console.log('file unable to be downloaded', err)};
+                    //remove last line from log file
+                    deleteLastDownloadLog();
+                    //normally returns full path which may be undesirable to leak so path is reset
+                    err.path = req.params.uuid;
+                    res.status(500).send(err);
+                }
             }
         });
     });
@@ -308,7 +341,7 @@ function createPath(noDashesUUID, req) {
     if (debug) {console.log(`uuid turned into path: ${uuidPath}`)};
     let fullPath = undefined;
     if (buckets[bucket]) {
-        fullPath = `${uploadsDir}${buckets[bucket].mountPoint}${uuidPath}`;
+        fullPath = `${uploadsDir}/${buckets[bucket].mountPoint}/${uuidPath}`;
     } else {
         throw new Error(`Invalid bucket: ${bucket}`);
     }
@@ -331,6 +364,20 @@ function validateDirPath(dirPath, callback = () => { }) {
         if (debug) {console.log('created dir path: ' + dirPath);}
     }
     callback();
+}
+function bucketHandler(bucket) {
+    switch(bucket) {
+        case 'quick':
+            buckets[bucket].sync();
+            break;
+        case 'std':
+        case 'tmp':
+        case 'default':
+            break;
+        default:
+            throw new Error(`Invalid bucket: ${bucket}`);
+            break;
+    }
 }
 function processArgv(args) {
     let argv = {_: []};
