@@ -540,19 +540,19 @@ function changeMethodToPost(options, form) {
     options.headers = form.getHeaders();
 }
 function printHelp() {
-    console.log("Usage: <command> <param>... [--port=portNumber] [--debug]\n" +
+    console.log("Usage: <command> <param>... [-p, --port=portNumber] [-d, --debug]\n" +
                 "      command = GET | PUT | POST\n" +
                 "      param = fileKey | filepath\n" +
-                "      port: port multicast client binds and sends to\n" +
-                "      debug: displays debugging output\n" +
+                "      port (-p): port multicast client binds and sends to\n" +
+                "      debug (-d): displays debugging output\n" +
                 "\n" +
-                "      GET <fileKey>... [--outputFiles=fileName1,...]\n" + //fileKey will contain uuid and aes key and iv
+                "      GET <fileKey>... [-o, --outputFiles=fileName1,...]\n" + //fileKey will contain uuid and aes key and iv
                 "      fileKey = string logged after PUT or POST\n" +
-                "      outputFiles: names to save downloaded files as (leave empty for default e.g. fileName1,,fileName3)\n" +
+                "      outputFiles (-o): names to save downloaded files as (leave empty for default e.g. fileName1,,fileName3)\n" +
                 "\n" +
-                "      PUT <filepath>... [--noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
+                "      PUT <filepath>... [-n, --noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
                 "      filepath = path to file for uploading\n" +
-                "      noEncryption: uploads unencrypted file contents\n" +
+                "      noEncryption (-n): uploads unencrypted file contents\n" +
                 "\n" +
                 "Deprecated usage: --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n"
     );
@@ -560,24 +560,40 @@ function printHelp() {
 function processArgv(args) {
     let argv = {_: []};
     args.forEach(arg => {
-        switch (arg.charAt(0)) {
-            case '-':
+        if (arg.charAt(0) === '-') {
+            //flags
+            let flag = undefined;
+            if (arg.charAt(1) !== '-') {
                 switch (arg.charAt(1)) {
-                    case '-':
-                        const param = arg.slice(2);
-                        if (param.split('=').length === 2) {
-                            argv[param.split('=')[0]] = param.split('=')[1];
-                        } else {
-                            argv[param] = true;
-                        }
+                    //match up single dash flags with double dash flags
+                    case 'p':
+                        flag = 'port';
+                        break;
+                    case 'd':
+                        flag = 'debug';
+                        break;
+                    case 'o':
+                        flag = 'outputFiles';
+                        break;
+                    case 'n':
+                        flag = 'noEncryption';
                         break;
                     default:
-                        //no single dash args implemented
                         break;
                 }
-                break;
-            default:
-                argv._.push(arg);
+            } else {
+                flag = arg.slice(2).split('=')[0];
+            }
+            //assign value to flag or mark it as true
+            const params = arg.split('=');
+            if (params.length === 2) {
+                argv[flag] = params[1];
+            } else {
+                argv[flag] = true;
+            }
+        } else {
+            //commands
+            argv._.push(arg);
         }
     });
     return argv;
