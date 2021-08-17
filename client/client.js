@@ -122,7 +122,7 @@ async function GET() {
 async function getIterThroughArgs(args) {
     args.forEach((arg, idx) => {
         try {
-            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, 200, 8, undefined, undefined, undefined, argv.outputFiles[idx], arg);
+            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.outputFiles[idx], arg);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -150,14 +150,6 @@ function httpGet(reqObj, callback = () => {}) {
     reqObj.req = http.request(options);
     initRequest(reqObj, callback, undefined);
     sendRequest(reqObj, undefined);
-}
-function validOutputFile(filePath) {
-    if (filePath && 
-        typeof filePath === "string" && 
-        filePath.length > 0 &&
-        !filePath.includes('.') &&
-        Buffer.byteLength(filePath) < maxFileLengthBytes) {return true}
-    return false;
 }
 async function PUT() {
     //check arg to see if it is a valid filePath
@@ -208,9 +200,9 @@ async function uploadIterThroughArgs(args, post = false) {
             const uuid = uuidv4().replace(/-/g, '');
             let reqObj = null;
             if (post) {
-                reqObj = new PostRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, 200, 8, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
+                reqObj = new PostRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
             } else {
-                reqObj = new PutRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, 200, 8, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
+                reqObj = new PutRequest(() => {sendMulticastMsg('u' + uuid + ':' + fileSize)}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
             }
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
