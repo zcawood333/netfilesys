@@ -567,20 +567,20 @@ function processArgv(args) {
             if (arg.charAt(1) !== '-') {
                 switch (arg.charAt(1)) {
                     //match up single dash flags with double dash flags
-                    case 'p':
-                        flag = 'port';
+                    case 'b':
+                        flag = 'bucket';
                         break;
                     case 'd':
                         flag = 'debug';
                         break;
-                    case 'o':
-                        flag = 'outputFiles';
-                        break;
                     case 'n':
                         flag = 'noEncryption';
                         break;
-                    case 'b':
-                        flag = 'bucket';
+                    case 'o':
+                        flag = 'outputFiles';
+                        break;
+                    case 'p':
+                        flag = 'port';
                         break;
                     default:
                         break;
