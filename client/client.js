@@ -579,6 +579,9 @@ function processArgv(args) {
                     case 'n':
                         flag = 'noEncryption';
                         break;
+                    case 'b':
+                        flag = 'bucket';
+                        break;
                     default:
                         break;
                 }
