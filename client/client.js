@@ -120,9 +120,9 @@ async function GET() {
     }, attemptTimeout);
 }
 async function getIterThroughArgs(args) {
-    args.forEach(arg => {
+    args.forEach((arg, idx) => {
         try {
-            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, 200, 8, undefined, undefined, undefined, arg);
+            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, 200, 8, undefined, undefined, undefined, argv.outputFiles[idx], arg);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -148,8 +148,6 @@ function httpGet(reqObj, callback = () => {}) {
         method: 'GET'
     }
     reqObj.req = http.request(options);
-    if (validOutputFile(argv.outputFile)) {reqObj.downloadFileName = argv.outputFile}
-    else if (argv.outputFile) {console.log(`Invalid output file, using filekey: ${reqObj.downloadFileName}`)}
     initRequest(reqObj, callback, undefined);
     sendRequest(reqObj, undefined);
 }
@@ -508,6 +506,17 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
 function commandArgsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
     if (argv.bucket !== undefined && !(typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.error('Invalid bucket ==> using default');}
+    if (argv.outputFile && typeof argv.outputFile === "string" && argv.outputFile.length > 0) {
+        let outputFiles = argv.outputFile.split(',');
+        outputFiles.forEach((filePath, idx) => {
+            if (filePath.length === 0 || filePath.includes('.') || Buffer.byteLength(filePath) >= maxFileLengthBytes) {
+                console.error(`Invalid output file: '${filePath}', using filekey`);
+                outputFiles[idx] = undefined;
+            }
+        });
+        argv.outputFiles = outputFiles;
+    }
+        
 }
 function flagArgsHandler() {
     if (argv.hostname) { tcpServerHostname = argv.hostname };
