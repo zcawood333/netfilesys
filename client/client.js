@@ -554,9 +554,9 @@ function printHelp() {
                 "      port: port multicast client binds and sends to\n" +
                 "      debug: displays debugging output\n" +
                 "\n" +
-                "      GET <fileKey>... [--outputFiles=fileName]\n" + //fileKey will contain uuid and aes key and iv
+                "      GET <fileKey>... [--outputFiles=fileName1,...]\n" + //fileKey will contain uuid and aes key and iv
                 "      fileKey = string logged after PUT or POST\n" +
-                "      outputFiles: downloaded file save name\n" +
+                "      outputFiles: names to save downloaded files as (leave empty for default e.g. fileName1,,fileName3)\n" +
                 "\n" +
                 "      PUT <filepath>... [--noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
                 "      filepath = path to file for uploading\n" +
