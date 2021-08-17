@@ -506,8 +506,8 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
 function commandArgsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
     if (argv.bucket !== undefined && !(typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.error('Invalid bucket ==> using default');}
-    if (argv.outputFile && typeof argv.outputFile === "string" && argv.outputFile.length > 0) {
-        let outputFiles = argv.outputFile.split(',');
+    if (argv.outputFiles && typeof argv.outputFiles === "string" && argv.outputFiles.length > 0) {
+        let outputFiles = argv.outputFiles.split(',');
         outputFiles.forEach((filePath, idx) => {
             if (filePath.length === 0 || filePath.includes('.') || Buffer.byteLength(filePath) >= maxFileLengthBytes) {
                 console.error(`Invalid output file: '${filePath}', using filekey`);
@@ -554,9 +554,9 @@ function printHelp() {
                 "      port: port multicast client binds and sends to\n" +
                 "      debug: displays debugging output\n" +
                 "\n" +
-                "      GET <fileKey>... [--outputFile=fileName]\n" + //fileKey will contain uuid and aes key and iv
+                "      GET <fileKey>... [--outputFiles=fileName]\n" + //fileKey will contain uuid and aes key and iv
                 "      fileKey = string logged after PUT or POST\n" +
-                "      outputFile: downloaded file save name\n" +
+                "      outputFiles: downloaded file save name\n" +
                 "\n" +
                 "      PUT <filepath>... [--noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
                 "      filepath = path to file for uploading\n" +
