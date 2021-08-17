@@ -35,6 +35,20 @@
             "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug", "--outputFile=DownloadedFile"]
         },
         {
+            "name": "Client GET (multiple output files)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9",
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                            "--debug", 
+                            "--outputFile=DownloadedFile1,DownloadedFile2,DownloadedFile3"]
+        },
+        {
             "name": "Client GET (bad output file)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
@@ -43,6 +57,20 @@
             ],
             "type": "pwa-node",
             "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug", "--outputFile=./../../DownloadedFile"]
+        },
+        {
+            "name": "Client GET encrypted (multiple output files w/ bad output file)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "09d84ab98d994102a9a32a384e0423f9",
+                            "9ff6b96ea24c4b96807f565bb6ba89b4", 
+                            "f77728f4ec4145b9a3a59a42b4952050", 
+                            "--debug", 
+                            "--outputFile=DownloadedFile1,./../../DownloadedFile2,DownloadedFile3"]
         },
         {
             "name": "Client GET (file doesn't exist)",
@@ -131,6 +159,20 @@
             "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", "--debug", "--outputFile=DownloadedFile"]
         },
         {
+            "name": "Client GET encrypted (multiple output files)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a", 
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                            "--debug", 
+                            "--outputFile=DownloadedFile1,DownloadedFile2,DownloadedFile3"]
+        },
+        {
             "name": "Client GET encrypted (bad output file)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
@@ -139,6 +181,20 @@
             ],
             "type": "pwa-node",
             "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", "--debug", "--outputFile=./../../DownloadedFile"]
+        },
+        {
+            "name": "Client GET encrypted (multiple output files w/ bad output file)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a", 
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                            "--debug", 
+                            "--outputFile=DownloadedFile1,./../../DownloadedFile2,DownloadedFile3"]
         },
         {
             "name": "Client GET encrypted (file doesn't exist)",
@@ -224,6 +280,27 @@
                             "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
                             "09d84ab98d994102a9a32a384e0423f9", 
                             "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34", 
+                            "--debug"]
+        },
+        {
+            "name": "Client GET encrypted/unencrypted (multiple files, nonexistent/invalid requests, imbalanced/invalid/empty output files)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["GET", "f77728f4ec4145b9a3a59a42b4952050",
+                            "c231bbebf457447c84340023b82a9e69c001d1a466504fce8e9496ace4fb30923923eca7d74ba7ef", 
+                            "g123456789abcdeffedcba9876543210",
+                            "06c53ea5bd234ecb9ef7848aed291e043e291a6de1ea4150bd9e8ff273bf1a6dfabad9c3dbac7c8a",
+                            "0123456789abcdeffedcba9876543210", 
+                            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 
+                            "9ff6b96ea24c4b96807f565bb6ba89b4",
+                            "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+                            "09d84ab98d994102a9a32a384e0423f9", 
+                            "eaffa30bde8147fd8e4ecac2826921658432c02cb7b44c0f8fddb0e5d62517de2d4993cfbc935b34",
+                            "--outputFile=DownloadedFile1,./../../DownloadedFile2,DownloadedFile3,,DownloadedFile5,./../../DownloadedFile6,DownloadedFile7,./../../DownloadedFile2,DownloadedFile9",
                             "--debug"]
         },
         {
