@@ -550,8 +550,9 @@ function printHelp() {
                 "      fileKey = string logged after PUT or POST\n" +
                 "      outputFiles (-o): names to save downloaded files as (leave empty for default e.g. fileName1,,fileName3)\n" +
                 "\n" +
-                "      PUT <filepath>... [-n, --noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
+                "      PUT <filepath>... [-b, --bucket=bucket] [-n, --noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
                 "      filepath = path to file for uploading\n" +
+                "      bucket (-b): bucket to upload file into\n" +
                 "      noEncryption (-n): uploads unencrypted file contents\n" +
                 "\n" +
                 "Deprecated usage: --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n"
