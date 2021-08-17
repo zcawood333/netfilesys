@@ -16,6 +16,16 @@ An http POST request to addr:port/upload with multipart/form-data with 'fileKey'
 For both requests, the server logs the event in an upload log file.
 ### Downloading files
 An http GET request to addr:port/download/UUID, where UUID is a valid UUID returned from a successful upload, will download the file saved there. The server logs the event in a download log file.
+### Buckets
+Buckets are different storage types on the server that clients can choose from depending on their needs.
+#### Default(default) Bucket
+Simply stores the file in the uploads folder. Used when client's bucket is undefined or invalid.
+#### Standard(std) Bucket
+Basic storage in the std/ folder.
+#### Temporary(tmp*) Bucket
+Stores the file in a tmp*/ folder, where * is the life of the file before deletion. Used to save server space on files that are only needed temporarily. Available tmp buckets can be configured in netfilesys/server/buckets.js. e.g. Any file uploaded to the tmp4 bucket will be removed after 4 minutes. 
+#### Quick(quick) Bucket
+Stores the file in a quick/ folder. This folder is always searched first for files and all files in the folder are stored as buffers in memory.
 ### Multicast
 Used by the client to asynchronously find and download files. Server responds via unicast if it has the file the client is looking for. 
 ## Client
@@ -38,6 +48,8 @@ Files are by default encrypted before they are uploaded. This can be overridden 
 The PUT command will initiate an http PUT request to the server with the fileToUpload's encrypted contents as its body. It logs the event and the generated fileKey.
 ##### POST
 The POST command will initiate an HTTP POST request to the server with the fileToUpload's encrypted contents in a key:value pair encoded as multipart/form-data. It logs the event and the generated fileKey.
+##### Buckets
+The -b/--bucket=bucket flag will upload the file to that bucket on the server. If bucket is not specified, the server will use its default.
 ### Downloading files
 Multiple files can be downloaded by specifying multiple fileKeys after the GET command.
 #### Encryption
