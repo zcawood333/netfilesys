@@ -32,7 +32,7 @@ If the file was encrypted, it is concatenated with a client-generated UUID and i
 ### Uploading files
 Multiple files can be uploaded by specifying multiple file paths after the POST/PUT command.
 #### Encryption
-Files are by default encrypted before they are uploaded. This can be overridden by setting the --noEncryption flag.
+Files are by default encrypted before they are uploaded. This can be overridden by setting the -n/--noEncryption flag.
 #### Commands
 ##### PUT
 The PUT command will initiate an http PUT request to the server with the fileToUpload's encrypted contents as its body. It logs the event and the generated fileKey.
@@ -44,5 +44,12 @@ Multiple files can be downloaded by specifying multiple fileKeys after the GET c
 The client determines whether or not the file was encrypted when uploaded depending on the fileKey. Encrypted files are automatically decrypted when saved.
 #### GET
 The GET command will parse the fileKey for the server UUID, the client UUID, and the initialization vector. It then sends a multicast message to subscribed servers to look for the file. If a server responds that it has the file, the client initiates an HTTP GET request to that server, automatically decrypting the file if necessary, and saves it to an output file.
+##### Output Files
+When using the GET command, the downloaded files will use their fileKey as their default download fileName. To override the default, the flag -o/--outputFiles=fileName1,... will save the corresponding downloaded files to that fileName. An empty fileName (fileName1,,fileName3) will use the default.
 ### Multicast
 The client uses multicast to asynchronously poll subscribed servers for files it wants to download. A server will respond if it has the file, allowing the client to directly request the file from that server.
+### Other Flags
+#### Port
+-p/--port=portNumber sets the multicast port the client will send messages to and listen on.
+#### Debug
+-d/--debug turns on debugging output.
