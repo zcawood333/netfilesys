@@ -211,7 +211,7 @@ async function uploadIterThroughArgs(args, post = false) {
         }
     });
 }
-function httpUpload(reqObj, readPath, callback = () => { }) {
+function httpUpload(reqObj, callback = () => { }) {
     const options = {
         hostname: reqObj.hostname,
         port: reqObj.port,
@@ -222,19 +222,9 @@ function httpUpload(reqObj, readPath, callback = () => { }) {
     if (reqObj.method === 'POST') {
         form = new formData();
     }
-    try {
-        reqObj.readStream = fs.createReadStream(readPath);
-        reqObj.readStream.on('error', err => {
-            console.error(err);
-        });
-        reqObj.readStream.on('end', () => {
-            if (debug) { console.log(`Sent ${reqObj.method} request reading from path: ${readPath}`); }
-            reqObj.readStream.close();
-        });
-    } catch {
-        if (debug) { console.log(`Unable to read file path: ${readPath}`); }
-        return;
-    }
+    reqObj.readStream.on('end', () => {
+        if (debug) { console.log(`Sent ${reqObj.encrypted ? 'encrypted' : 'unencrypted'} ${reqObj.method} from filePath: ${reqObj.filePath}`); }
+    });
     if (reqObj.method === 'POST') {
         form.append('fileKey', reqObj.readStream, reqObj.fileName);
         options.headers = form.getHeaders();
@@ -298,33 +288,15 @@ async function initMulticastClient() {
                     //temporarily disable multicast messaging
                     reqObj.intervalLock = true;
                     //upload file to server claiming to have space
-                    if (reqObj.encrypted) {
-                        const encryptedFilePath = `${tempFilePath}${reqObj.key}`;
-                        aesEncrypt(reqObj.filePath, encryptedFilePath, reqObj.key, reqObj.iv, () => {
-                            httpUpload(reqObj, encryptedFilePath, success => {
-                                fs.rm(encryptedFilePath, () => {
-                                    if (debug) { console.log(`temp file: ${encryptedFilePath} removed`); }
-                                });
-                                if (success) {
-                                    //clear uuid interval
-                                    clearInterval(reqObj.interval);
-                                    delete requests[uuid];
-                                } else {
-                                    reqObj.intervalLock = false;
-                                }
-                            });
-                        });
-                    } else {
-                        httpUpload(reqObj, reqObj.filePath, success => {
-                            if (success) {
-                                //clear uuid interval
-                                clearInterval(reqObj.interval);
-                                delete requests[uuid];
-                            } else {
-                                reqObj.intervalLock = false;
-                            }
-                        });
-                    }
+                    httpUpload(reqObj, success => {
+                        if (success) {
+                            //clear uuid interval
+                            clearInterval(reqObj.interval);
+                            delete requests[uuid];
+                        } else {
+                            reqObj.intervalLock = false;
+                        }
+                    });
                 }
                 break;
             default:
@@ -433,34 +405,6 @@ function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = 
         callback();
     });
     readStream.pipe(decipher).pipe(writeStream);
-}
-function aesEncrypt(unencryptedFilePath, encryptedFilePath, key, iv, callback = () => { }) {
-    //encrypts file at old path using key, writes it to new file path
-    if (debug) {
-        console.log(`key: ${key}`);
-        console.log(`iv: ${iv}`);
-    }
-    //assumes the old file path exists
-    const encryptedFileDir = encryptedFilePath.split('/').slice(0, -1).join('/');
-    if (!fs.existsSync(encryptedFileDir)) { fs.mkdirSync(encryptedFileDir, { recursive: true }) };
-    const readStream = fs.createReadStream(unencryptedFilePath);
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    const writeStream = fs.createWriteStream(encryptedFilePath);
-    readStream.on('error', err => {
-        console.error(err);
-    });
-    cipher.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('finish', () => {
-        readStream.close();
-        writeStream.close();
-        callback();
-    });
-    readStream.pipe(cipher).pipe(writeStream);
 }
 function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
