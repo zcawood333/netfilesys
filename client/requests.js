@@ -31,7 +31,7 @@ class _Request {
 class GetRequest extends _Request {
     constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = '', port = null, downloadFileDir = __dirname, downloadFileName = undefined, fileKey) {
         super('GET', intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, fileKey);
-        this.checkFilekey(fileKey);
+        this.checkFileKey(fileKey);
         this.encrypted = fileKey.length > 32 ? true : false;
         this.fileKey = fileKey;
         this.uuid = fileKey.substr(0, 32);
@@ -46,7 +46,7 @@ class GetRequest extends _Request {
         this.downloadFilePath = this.genDownloadPath(this.downloadFileDir, this.downloadFileName);
         this.writeStream = this.genWriteStream(this.encrypted, this.downloadFilePath, this.key, this.iv);
     }
-    checkFilekey(fileKey) {
+    checkFileKey(fileKey) {
         if (fileKey.length !== 32 && fileKey.length !== 80) { //must either be 32 or 80 characters
             clearInterval(this.interval); //originally set in super() call
             throw new Error('Invalid file key: incorrect length');
