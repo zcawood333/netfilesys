@@ -14,7 +14,6 @@ const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempt will wait before trying again
 const downloadPath = `${__dirname}/downloads/`; //where files downloaded with GET are stored
-const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), fileKeys (serverUUID + clientKey + clientIV), and the datetime
 const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'bucket', 'datetime']} //used to create log file if missing
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores fileKeys (serverUUID + clientKey + clientIV) and the datetime
@@ -122,7 +121,7 @@ async function get() {
 async function getIterThroughArgs(args) {
     args.forEach((arg, idx) => {
         try {
-            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.outputFiles[idx], arg);
+            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, attemptTimeout, numAttempts, undefined, undefined, undefined, downloadPath, argv.outputFiles[idx], arg);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -303,25 +302,10 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
             getCallback(true); 
             uploadCallback(true);
             if (reqObj.method === 'GET') {
-                //save file under ./getDownloadPath/downloadFilePath, and if the path doesn't exist, create the necessary directories
-                let path;
-                if (reqObj.encrypted) { path = `${tempFilePath}${reqObj.downloadFilePath}` } //path goes to a temp file first to get decrypted
-                else { path = `${downloadPath}${reqObj.downloadFilePath}`} //path is direct to download file
-                if (debug) { console.log(`path: ${path}`) }
-                validateDirPath(path.split('/').slice(0,-1).join('/'));
-                const writeStream = fs.createWriteStream(path);
-                writeStream.on('finish', () => {
-                    if (reqObj.encrypted) {
-                        aesDecrypt(path, `${downloadPath}${reqObj.downloadFilePath}`, reqObj.key, reqObj.iv, () => {
-                            fs.rm(path, () => {
-                                if (debug) { console.log(`temp file: ${path} removed`); }
-                            });
-                            if (debug) { console.log(`file downloaded to ${downloadPath}${reqObj.downloadFilePath}`); }
-                        });
-                    }
-                    writeStream.close();
+                reqObj.writeStream.on('end', () => { //'writeStream' has 'end' event because it is actually a crypto transform stream forwarding to the download file
+                    if (debug) { console.log(`File downloaded to ${reqObj.downloadFilePath}`)}
                 });
-                res.pipe(writeStream);
+                res.pipe(reqObj.writeStream);
             }
             res.on('data', d => {
                 if (debug) { console.log('data: ', d.toString()); }
@@ -389,34 +373,6 @@ function validateDirPath(dirPath) {
         fs.mkdirSync(dirPath, { recursive: true });
         if (debug) {console.log('created dir path: ' + dirPath);}
     }
-}
-function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = () => { }) {
-    //decrypts file at old path using key, writes it to new file path
-    if (debug) {
-        console.log(`key: ${key}`);
-        console.log(`iv: ${iv}`);
-    }
-    //assumes the old file path exists
-    const unencryptedFileDir = unencryptedFilePath.split('/').slice(0, -1).join('/');
-    if (!fs.existsSync(unencryptedFileDir)) { fs.mkdirSync(unencryptedFileDir, { recursive: true }) };
-    const readStream = fs.createReadStream(encryptedFilePath);
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    const writeStream = fs.createWriteStream(unencryptedFilePath);
-    readStream.on('error', err => {
-        console.error(err);
-    });
-    decipher.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('error', err => {
-        console.error(err);
-    });
-    writeStream.on('finish', () => {
-        readStream.close();
-        writeStream.close();
-        callback();
-    });
-    readStream.pipe(decipher).pipe(writeStream);
 }
 function commandArgsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
