@@ -362,16 +362,13 @@ function validUUID(val) {
 }
 function validateLogFile(path, format) {
     const logDir = path.split('/').slice(0, -1).join('/');
-    validateDirPath(logDir);
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+        if (debug) {console.log('created logDir path: ' + logDir);}
+    }
     if (!fs.existsSync(path)) {
         fs.appendFileSync(path, format.columns.join(',') + '\n');
         console.log('created log file: ' + path);
-    }
-}
-function validateDirPath(dirPath) {
-    if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
-        if (debug) {console.log('created dir path: ' + dirPath);}
     }
 }
 function commandArgsHandler() {
