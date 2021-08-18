@@ -92,7 +92,7 @@ if (argv._.length > 0) {
         const req = http.request(options);
         //init req event listeners
         const uuid = path.split('/').slice(-1)[0];
-        initRequest(req, method === 'GET', { downloadFileName: uuid, serverUUID: uuid });
+        initRequest(req, method === 'GET', { downloadFilePath: uuid, serverUUID: uuid });
         //send request
         sendRequest(req, method === 'POST', { readStream: form }, options.port);
     }
@@ -303,20 +303,20 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
             getCallback(true); 
             uploadCallback(true);
             if (reqObj.method === 'GET') {
-                //save file under ./getDownloadPath/downloadFileName, and if the path doesn't exist, create the necessary directories
+                //save file under ./getDownloadPath/downloadFilePath, and if the path doesn't exist, create the necessary directories
                 let path;
-                if (reqObj.encrypted) { path = `${tempFilePath}${reqObj.downloadFileName}` } //path goes to a temp file first to get decrypted
-                else { path = `${getDownloadPath}${reqObj.downloadFileName}`} //path is direct to download file
+                if (reqObj.encrypted) { path = `${tempFilePath}${reqObj.downloadFilePath}` } //path goes to a temp file first to get decrypted
+                else { path = `${getDownloadPath}${reqObj.downloadFilePath}`} //path is direct to download file
                 if (debug) { console.log(`path: ${path}`) }
                 validateDirPath(path.split('/').slice(0,-1).join('/'));
                 const writeStream = fs.createWriteStream(path);
                 writeStream.on('finish', () => {
                     if (reqObj.encrypted) {
-                        aesDecrypt(path, `${getDownloadPath}${reqObj.downloadFileName}`, reqObj.key, reqObj.iv, () => {
+                        aesDecrypt(path, `${getDownloadPath}${reqObj.downloadFilePath}`, reqObj.key, reqObj.iv, () => {
                             fs.rm(path, () => {
                                 if (debug) { console.log(`temp file: ${path} removed`); }
                             });
-                            if (debug) { console.log(`file downloaded to ${getDownloadPath}${reqObj.downloadFileName}`); }
+                            if (debug) { console.log(`file downloaded to ${getDownloadPath}${reqObj.downloadFilePath}`); }
                         });
                     }
                     writeStream.close();

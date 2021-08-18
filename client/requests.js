@@ -29,7 +29,7 @@ class _Request {
     }
 }
 class GetRequest extends _Request {
-    constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = '', port = null, downloadFileName = undefined, fileKey) {
+    constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = '', port = null, downloadFilePath = undefined, fileKey) {
         super('GET', intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, fileKey);
         this.checkFilekey(fileKey);
         this.encrypted = fileKey.length > 32 ? true : false;
@@ -41,7 +41,7 @@ class GetRequest extends _Request {
             this.key = fileKey.substr(32, 32);
             this.iv = fileKey.slice(64);
         }
-        this.downloadFileName = downloadFileName ? downloadFileName : fileKey;
+        this.downloadFilePath = downloadFilePath ? downloadFilePath : fileKey;
     }
     checkFilekey(fileKey) {
         if (fileKey.length !== 32 && fileKey.length !== 80) { //must either be 32 or 80 characters
