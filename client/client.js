@@ -55,7 +55,7 @@ if (argv._.length > 0) {
     commandArgsHandler();
     switch (argv._[0].toLowerCase()) {
         case 'get':
-            GET();
+            get();
             break;
         case 'post':
             upload(post = true);
@@ -99,7 +99,7 @@ if (argv._.length > 0) {
 }
 
 //FUNCTIONS
-async function GET() {
+async function get() {
     if (argv._.length < 2) {
         throw new Error('Usage: GET <fileKey> <fileKey2> ...');
     }
