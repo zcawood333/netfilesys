@@ -1,7 +1,4 @@
 # netfilesys
-################################\
-WORK IN PROGRESS\
-################################\
 Network-based file system using multicast to asynchronously communicate with servers to download files, upload files, and share information.
 ## Server
 Listens on a given addr:port and multicast address for incoming http requests and multicast messages.
