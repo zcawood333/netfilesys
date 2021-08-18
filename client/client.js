@@ -13,7 +13,7 @@ const ipAddr = require('ip').address();
 const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempt will wait before trying again
-const getDownloadPath = `${__dirname}/downloads/`; //where files from GET are stored
+const downloadPath = `${__dirname}/downloads/`; //where files downloaded with GET are stored
 const tempFilePath = `${__dirname}/tmp/`; //temporary spot for encrypted files
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), fileKeys (serverUUID + clientKey + clientIV), and the datetime
 const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'bucket', 'datetime']} //used to create log file if missing
@@ -306,17 +306,17 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
                 //save file under ./getDownloadPath/downloadFilePath, and if the path doesn't exist, create the necessary directories
                 let path;
                 if (reqObj.encrypted) { path = `${tempFilePath}${reqObj.downloadFilePath}` } //path goes to a temp file first to get decrypted
-                else { path = `${getDownloadPath}${reqObj.downloadFilePath}`} //path is direct to download file
+                else { path = `${downloadPath}${reqObj.downloadFilePath}`} //path is direct to download file
                 if (debug) { console.log(`path: ${path}`) }
                 validateDirPath(path.split('/').slice(0,-1).join('/'));
                 const writeStream = fs.createWriteStream(path);
                 writeStream.on('finish', () => {
                     if (reqObj.encrypted) {
-                        aesDecrypt(path, `${getDownloadPath}${reqObj.downloadFilePath}`, reqObj.key, reqObj.iv, () => {
+                        aesDecrypt(path, `${downloadPath}${reqObj.downloadFilePath}`, reqObj.key, reqObj.iv, () => {
                             fs.rm(path, () => {
                                 if (debug) { console.log(`temp file: ${path} removed`); }
                             });
-                            if (debug) { console.log(`file downloaded to ${getDownloadPath}${reqObj.downloadFilePath}`); }
+                            if (debug) { console.log(`file downloaded to ${downloadPath}${reqObj.downloadFilePath}`); }
                         });
                     }
                     writeStream.close();
