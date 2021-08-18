@@ -58,10 +58,10 @@ if (argv._.length > 0) {
             GET();
             break;
         case 'post':
-            POST();
+            upload(post = true);
             break;
         case 'put':
-            PUT();
+            upload();
             break;
         default:
             throw new Error(`Unrecognized command: ${argv._[0]}`)
@@ -151,35 +151,14 @@ function httpGet(reqObj, callback = () => {}) {
     initRequest(reqObj, callback, undefined);
     sendRequest(reqObj, undefined);
 }
-async function PUT() {
+async function upload(post = false) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
-        throw new Error('Usage: PUT <filePath>...');
+        throw new Error(`Usage: ${post ? 'POST' : 'PUT'} <filePath>...`);
     }
     await initMulticastClient();
     const args = argv._.slice(1);
-    await uploadIterThroughArgs(args, false);
-    closeMulticastClient(() => {
-        const keys = Object.keys(requests);
-        let close = true;
-        for(let i = 0; i < keys.length; i++) {
-            if (requests[keys[i]].failed) {
-                delete requests[keys[i]];
-            } else {
-                close = false;
-            }
-        }
-        return close;
-    }, attemptTimeout);
-}
-async function POST() {
-    //check arg to see if it is a valid filePath
-    if (argv._.length < 2) {
-        throw new Error('Usage: POST <filePath>...');
-    }
-    await initMulticastClient();
-    const args = argv._.slice(1);
-    await uploadIterThroughArgs(args, true);
+    await uploadIterThroughArgs(args, post);
     closeMulticastClient(() => {
         const keys = Object.keys(requests);
         let close = true;
