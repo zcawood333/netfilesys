@@ -67,17 +67,50 @@ class _UploadRequest extends _Request {
         this.fileName = filePath.split('/').slice(-1)[0];
         this.uuid = uuid;
         this.fileSize = fileSize; //additional 8 bytes to account for possible aes encryption padding
-        this.readStream = null;
         this.key = '';
         this.iv = '';
         if (this.encrypted) {
             this.key = uuidv4().replace(/-/g, '');
             this.iv = crypto.randomBytes(8).toString('hex');
-        }        
+        }
+        this.readStream = this.genReadStream(this.encrypted, this.filePath, this.key, this.iv);        
     }
     checkFilePath(filePath) {
         if (!fs.existsSync(filePath)) {
             throw new Error(`File path (${filePath}) does not exist`);
+        }
+    }
+    genReadStream(encrypted, filePath, key, iv) {
+        try {
+            if (encrypted) {
+                const readStream = fs.createReadStream(filePath);
+                const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+                readStream.on('error', err => {
+                    console.error(err);
+                    readStream.close();
+                    cipher.close();
+                });
+                cipher.on('error', err => {
+                    console.error(err);
+                    readStream.close();
+                    cipher.close();
+                });
+                const encryptedStream = readStream.pipe(cipher);
+                encryptedStream.on('error', err => {
+                    console.error(err);
+                    encryptedStream.close();
+                });
+                return encryptedStream;
+            } else {
+                const readStream = fs.createReadStream(filePath);
+                readStream.on('error', err => {
+                    console.error(err);
+                    readStream.close();
+                });
+                return readStream;
+            }
+        } catch {
+            throw new Error(`Cannot generate ${encrypted ? 'encrypted ' : ''}readStream from file path ${filePath}`);
         }
     }
 }
