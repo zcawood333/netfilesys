@@ -507,7 +507,7 @@ function commandArgsHandler() {
             }
         });
         argv.outputFiles = outputFiles;
-    }
+    } else {argv.outputFiles = []}
         
 }
 function flagArgsHandler() {
