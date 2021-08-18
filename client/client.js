@@ -12,7 +12,7 @@ const ipAddr = require('ip').address();
 const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempt will wait before trying again
-const downloadPath = `${__dirname}/downloads/`; //where files downloaded with GET are stored
+const downloadDir = `${__dirname}/downloads`; //where files downloaded with GET are stored
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), fileKeys (serverUUID + clientKey + clientIV), and the datetime
 const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'bucket', 'datetime']} //used to create log file if missing
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores fileKeys (serverUUID + clientKey + clientIV) and the datetime
@@ -82,7 +82,7 @@ async function get() {
 async function getIterThroughArgs(args) {
     args.forEach((arg, idx) => {
         try {
-            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, attemptTimeout, numAttempts, undefined, undefined, undefined, downloadPath, argv.outputFiles[idx], arg);
+            const reqObj = new GetRequest(() => {sendMulticastMsg('g' + arg.substr(0,32))}, attemptTimeout, numAttempts, undefined, undefined, undefined, downloadDir, argv.outputFiles[idx], arg);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
