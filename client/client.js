@@ -130,16 +130,6 @@ async function getIterThroughArgs(args) {
         } 
     });
 }
-function validUUID(val) {
-    const newVal = val.replace(/-/g, '');
-    if (newVal.length !== 32) { return false }
-    for (let i = 0; i < newVal.length; i++) {
-        const char = newVal.charAt(i);
-        if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) { continue }
-        return false;
-    }
-    return true;
-}
 function httpGet(reqObj, callback = () => {}) {
     const options = {
         hostname: reqObj.hostname,
@@ -285,6 +275,24 @@ async function initMulticastClient() {
     if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
     multicastClient.bind(multicastPort, ipAddr);
 }
+function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
+    const message = new Buffer.from(msg);
+    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
+        if (close) {
+            multicastClient.close();
+            if (debug) { console.log('multicastClient closed') }
+        }
+    });
+    if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
+}
+function closeMulticastClient(checkFunction = () => {return true}, timeInterval = attemptTimeout) {
+    const closeClient = setInterval(() => {
+        if (checkFunction()) {
+            multicastClient.close();
+            clearInterval(closeClient);
+        }
+    }, timeInterval);
+}
 function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback = (success) => {return}) {
     reqObj.req.on('error', err => {
         console.error(err)
@@ -333,6 +341,21 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
         }
     });
 }
+function sendRequest(reqObj, readStream = null) {
+    switch(reqObj.method) {
+        case 'GET':
+            reqObj.req.end();
+            break;
+        case 'PUT':
+        case 'POST':
+            readStream.pipe(reqObj.req);
+            break;
+        default:
+            throw new Error(`${reqObj.method} is an invalid request type`);
+            break;
+    }
+    if (debug) {console.log("Sent ", reqObj.req.method, " request to ", reqObj.req.host, ":", reqObj.port)}
+}
 function logUpload(reqObj, serverUUID, callback = () => { }) {
     validateLogFile(uploadLogPath, uploadLogFormat);
     const today = new Date(Date.now());
@@ -342,6 +365,16 @@ function logDownload(reqObj, callback = () => { }) {
     validateLogFile(downloadLogPath, downloadLogFormat);
     const today = new Date(Date.now());
     fs.appendFile(downloadLogPath, `${reqObj.uuid}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
+}
+function validUUID(val) {
+    const newVal = val.replace(/-/g, '');
+    if (newVal.length !== 32) { return false }
+    for (let i = 0; i < newVal.length; i++) {
+        const char = newVal.charAt(i);
+        if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) { continue }
+        return false;
+    }
+    return true;
 }
 function validateLogFile(path, format) {
     const logDir = path.split('/').slice(0, -1).join('/');
@@ -384,39 +417,6 @@ function aesDecrypt(encryptedFilePath, unencryptedFilePath, key, iv, callback = 
         callback();
     });
     readStream.pipe(decipher).pipe(writeStream);
-}
-function sendMulticastMsg(msg = 'this is a sample multicast message (from client)', close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
-    const message = new Buffer.from(msg);
-    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
-        if (close) {
-            multicastClient.close();
-            if (debug) { console.log('multicastClient closed') }
-        }
-    });
-    if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
-}
-function sendRequest(reqObj, readStream = null) {
-    switch(reqObj.method) {
-        case 'GET':
-            reqObj.req.end();
-            break;
-        case 'PUT':
-        case 'POST':
-            readStream.pipe(reqObj.req);
-            break;
-        default:
-            throw new Error(`${reqObj.method} is an invalid request type`);
-            break;
-    }
-    if (debug) {console.log("Sent ", reqObj.req.method, " request to ", reqObj.req.host, ":", reqObj.port)}
-}
-function closeMulticastClient(checkFunction = () => {return true}, timeInterval = attemptTimeout) {
-    const closeClient = setInterval(() => {
-        if (checkFunction()) {
-            multicastClient.close();
-            clearInterval(closeClient);
-        }
-    }, timeInterval);
 }
 function commandArgsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
