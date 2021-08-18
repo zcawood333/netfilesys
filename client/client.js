@@ -11,17 +11,17 @@ const multicastAddr = '230.185.192.108';
 const ipAddr = require('ip').address();
 const { exit } = require('process');
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
-const attemptTimeout = 200; // milliseconds attempt will wait before trying again
+const attemptTimeout = 200; // milliseconds attempts will wait before trying again
 const downloadDir = `${__dirname}/downloads`; //where files downloaded with GET are stored
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`; //stores method, encryption (bool), fileKeys (serverUUID + clientKey + clientIV), and the datetime
 const uploadLogFormat = {columns: ['method', 'encrypted', 'fileKey', 'bucket', 'datetime']} //used to create log file if missing
 const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores fileKeys (serverUUID + clientKey + clientIV) and the datetime
 const downloadLogFormat = {columns: ['uuid','datetime']} //used to create log file if missing
 const maxFileLengthBytes = 255;
+const requests = {};
 const { GetRequest, PutRequest, PostRequest } = require('./requests');
 
 //command defaults
-let requests = {};
 let multicastPort = 5001;
 
 
@@ -260,8 +260,6 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
     reqObj.req.on('response', res => {
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
         if (res.statusCode === 200) {
-            getCallback(true); 
-            uploadCallback(true);
             if (reqObj.method === 'GET') {
                 reqObj.writeStream.on('end', () => { //'writeStream' has 'end' event because it is actually a crypto transform stream forwarding to the download file
                     if (debug) { console.log(`File downloaded to ${reqObj.downloadFilePath}`)}
