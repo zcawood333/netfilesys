@@ -29,7 +29,7 @@ class _Request {
     }
 }
 class GetRequest extends _Request {
-    constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = '', port = null, downloadFilePath = undefined, fileKey) {
+    constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = '', port = null, downloadFileDir = __dirname, downloadFileName = undefined, fileKey) {
         super('GET', intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, fileKey);
         this.checkFilekey(fileKey);
         this.encrypted = fileKey.length > 32 ? true : false;
@@ -41,7 +41,10 @@ class GetRequest extends _Request {
             this.key = fileKey.substr(32, 32);
             this.iv = fileKey.slice(64);
         }
-        this.downloadFilePath = downloadFilePath ? downloadFilePath : fileKey;
+        this.downloadFileDir = downloadFileDir;
+        this.downloadFileName = downloadFileName !== undefined ? downloadFileName : fileKey;
+        this.downloadFilePath = this.genDownloadPath(this.downloadFileDir, this.downloadFileName);
+        this.writeStream = this.genWriteStream(this.encrypted, this.downloadFilePath, this.key, this.iv);
     }
     checkFilekey(fileKey) {
         if (fileKey.length !== 32 && fileKey.length !== 80) { //must either be 32 or 80 characters
@@ -54,6 +57,47 @@ class GetRequest extends _Request {
                 clearInterval(this.interval); //originally set in super() call
                 throw new Error(`Invalid file key (${fileKey}): must be fully hexadecimal`);
             }
+        }
+    }
+    genDownloadPath(downloadFileDir, downloadFileName) {
+        if (downloadFileDir === undefined) {throw new Error(`Invalid downloadFileDir: ${downloadFileDir}`);}
+        if (!fs.existsSync(downloadFileDir)) {
+            fs.mkdirSync(downloadFileDir, { recursive: true });
+        }
+        return downloadFileDir + '/' + downloadFileName;
+
+    }
+    genWriteStream(encrypted, downloadFilePath, key, iv) {
+        try {
+            if (encrypted) {
+                const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                const writeStream = fs.createWriteStream(downloadFilePath);
+                decipher.on('error', err => {
+                    console.error(err);
+                    writeStream.close();
+                    decipher.close();
+                });
+                decipher.on('pipe', () => {
+                    decipher.pipe(writeStream);
+                });
+                writeStream.on('error', err => {
+                    console.error(err);
+                    decipher.close();
+                    writeStream.close();
+                });
+                
+                return decipher;
+            } else {
+                const writeStream = fs.createWriteStream(downloadFilePath);
+                writeStream.on('error', err => {
+                    console.error(err);
+                    writeStream.close();
+                });
+                return writeStream;
+            }
+        } catch {
+            clearInterval(this.interval); //originally set in super() call
+            throw new Error(`Cannot generate ${encrypted ? 'decryption tunnel' : 'writeStream'} to ${downloadFilePath}`);
         }
     }
 }
