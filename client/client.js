@@ -2,7 +2,6 @@
 
 const argv = processArgv(process.argv.slice(2));
 const http = require('http');
-const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const formData = require('form-data');
 const fs = require('fs');
@@ -21,17 +20,9 @@ const downloadLogFormat = {columns: ['uuid','datetime']} //used to create log fi
 const maxFileLengthBytes = 255;
 const { GetRequest, PutRequest, PostRequest } = require('./requests');
 
-//command based implementation defaults
+//command defaults
 let requests = {};
 let multicastPort = 5001;
-
-
-//flag-based implementation defaults
-let tcpServerPort = 5000;
-let tcpServerHostname = '192.168.1.43';
-let path = '';
-let method = 'GET';
-let fpath = null;
 
 
 //testing
@@ -44,7 +35,7 @@ if (argv.debug) {
 //MAIN CODE
 if (debug) { console.log('argv: ', argv) };
 
-if (argv.help || (process.argv.length <= 2 || argv._[0] == 'help')) { // if help or no args
+if (argv.help || (process.argv.length <= 2 || argv._length <= 0 || argv._[0] == 'help')) { // if help or no args
     printHelp();
     exit(0);
 }
@@ -64,36 +55,6 @@ if (argv._.length > 0) {
             break;
         default:
             throw new Error(`Unrecognized command: ${argv._[0]}`)
-    }
-} else {
-    //flag based, old implementation; probably needs cleaned up eventually
-    if (argv.multicast) {
-        //send a multicast message and close the connection
-        initMulticastClient();
-        sendMulticastMsg(argv.multicast, true, argv.port, argv.hostname);
-    } else {
-        //send a http request
-        //argv handling and error checking
-        flagArgsHandler();
-        //create http request
-        const options = {
-            hostname: tcpServerHostname,
-            port: tcpServerPort,
-            path: path,
-            method: 'GET',
-        }
-        //make POST-specific changes
-        let form = undefined;
-        if (method === 'POST') {
-            form = new formData();
-            changeMethodToPost(options, form);
-        }
-        const req = http.request(options);
-        //init req event listeners
-        const uuid = path.split('/').slice(-1)[0];
-        initRequest(req, method === 'GET', { downloadFilePath: uuid, serverUUID: uuid });
-        //send request
-        sendRequest(req, method === 'POST', { readStream: form }, options.port);
     }
 }
 
@@ -386,35 +347,6 @@ function commandArgsHandler() {
     } else {argv.outputFiles = []}
         
 }
-function flagArgsHandler() {
-    if (argv.hostname) { tcpServerHostname = argv.hostname };
-    if (argv.path) { path = argv.path };
-    if (argv.port) { tcpServerPort = argv.port };
-    if (argv.method) {
-        switch (argv.method.toLowerCase()) {
-            case 'p':
-            case 'post':
-                method = 'POST';
-                break;
-            case 'g':
-            case 'get':
-                method = 'GET';
-                break;
-            default:
-                throw new Error(`Unknown method: ${argv.method}`);
-        }
-    }
-}
-function changeMethodToPost(options, form) {
-    options.method = 'POST';
-    if (!(argv.fpath)) {
-        throw new Error('POST request requires a file path');
-    }
-    fpath = argv.fpath;
-    const postFile = fs.createReadStream(fpath);
-    form.append('fileKey', postFile);
-    options.headers = form.getHeaders();
-}
 function printHelp() {
     console.log("Usage: <command> <param>... [-p, --port=portNumber] [-d, --debug]\n" +
                 "      command = GET | PUT | POST\n" +
@@ -429,9 +361,7 @@ function printHelp() {
                 "      PUT <filepath>... [-b, --bucket=bucket] [-n, --noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
                 "      filepath = path to file for uploading\n" +
                 "      bucket (-b): bucket to upload file into\n" +
-                "      noEncryption (-n): uploads unencrypted file contents\n" +
-                "\n" +
-                "Deprecated usage: --method=[g,get,p,post], --hostname=..., --port=..., --path=..., --fpath=... \n"
+                "      noEncryption (-n): uploads unencrypted file contents\n"
     );
 }
 function processArgv(args) {
