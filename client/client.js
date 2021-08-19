@@ -171,8 +171,7 @@ async function initMulticastClient() {
     multicastClient.on("listening", err => {
         if (err) {console.error(err); return}
         if (debug) {
-            console.log(`multicastClient listening on multicast address ${multicastAddr}`);
-            console.log("multicastClient bound to address: ", multicastClient.address());
+            console.log("Starting multicast client:", multicastClient.address(), "listening on", multicastAddr);
         }
         multicastClient.setBroadcast(true);
         multicastClient.setMulticastTTL(128);
@@ -226,15 +225,14 @@ async function initMulticastClient() {
                 break;
         }
     });
-    if (debug) {console.log(`Starting multicastClient on port ${multicastPort}`);}
     multicastClient.bind(multicastPort, ipAddr);
 }
-function sendMulticastMsg(msg = "this is a sample multicast message (from client)", close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
+function sendMulticastMsg(msg = "This is a sample multicast message (from client)", close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
             multicastClient.close();
-            if (debug) { console.log("multicastClient closed") }
+            if (debug) { console.log("Multicast client closed") }
         }
     });
     if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
@@ -252,7 +250,7 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
         console.error(err)
     });
     reqObj.req.on("response", res => {
-        if (debug) { console.log(`statusCode: ${res.statusCode}`) }
+        if (debug) { console.log(`Status code: ${res.statusCode}`) }
         if (res.statusCode === 200) {
             if (reqObj.method === "GET") {
                 reqObj.writeStream.on("finish", () => { 
@@ -265,14 +263,14 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
                 reqObj.end();
             }
             res.on("data", d => {
-                if (debug) { console.log("data: ", d.toString()); }
+                if (debug) { console.log("Data: ", d.toString()); }
                 if (reqObj.method === "GET") {
                     logDownload(reqObj, () => {
-                        if (debug) { console.log("file download logged successfully"); }
+                        if (debug) { console.log("File download logged successfully"); }
                     });
                 } else if (reqObj.method === "POST" || reqObj.method === "PUT") {
                     logUpload(reqObj, d, () => {
-                        if (debug) { console.log("file upload logged successfully"); }
+                        if (debug) { console.log("File upload logged successfully"); }
                     });
                 }
             });
@@ -323,11 +321,11 @@ function validateLogFile(path, format) {
     const logDir = path.split("/").slice(0, -1).join("/");
     if (!fs.existsSync(logDir)) {
         fs.mkdirSync(logDir, { recursive: true });
-        if (debug) {console.log("created logDir path: " + logDir);}
+        if (debug) {console.log("Created log dir: " + logDir);}
     }
     if (!fs.existsSync(path)) {
         fs.appendFileSync(path, format.columns.join(",") + "\n");
-        console.log("created log file: " + path);
+        console.log("Created log file: " + path);
     }
 }
 function commandArgsHandler() {
