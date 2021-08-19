@@ -40,7 +40,7 @@ if (argv.help || (process.argv.length <= 2 || argv._length <= 0 || argv._[0] == 
 }
 
 if (argv._.length > 0) {
-    commandArgsHandler();
+    argsHandler();
     switch (argv._[0].toLowerCase()) {
         case "get":
             get();
@@ -57,6 +57,10 @@ if (argv._.length > 0) {
 }
 
 //FUNCTIONS
+/*
+Main GET function that calls subfunctions to complete the requests. 
+It closes the multicast client when finished.
+*/
 async function get() {
     if (argv._.length < 2) {
         throw new Error("Usage: GET <fileKey> <fileKey2> ...");
@@ -77,6 +81,11 @@ async function get() {
         return close;
     }, attemptTimeout);
 }
+/*
+Iterates through GET command arguments and creates GetRequest objects, 
+adding each to the global requests variable. It logs any errors 
+encountered when making the objects.
+*/
 async function getIterThroughArgs(args) {
     args.forEach((arg, idx) => {
         try {
@@ -88,6 +97,10 @@ async function getIterThroughArgs(args) {
         } 
     });
 }
+/*
+Initiates and completes a single http GET request based on the parameters 
+in the request object.
+*/
 function httpGet(reqObj, callback = () => {}) {
     const options = {
         hostname: reqObj.hostname,
@@ -99,6 +112,10 @@ function httpGet(reqObj, callback = () => {}) {
     initRequest(reqObj, callback, undefined);
     sendRequest(reqObj, undefined);
 }
+/*
+Main PUT/POST function that calls subfunctions to complete the requests. 
+It closes the multicast client when finished.
+*/
 async function upload(post = false) {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
@@ -120,6 +137,11 @@ async function upload(post = false) {
         return close;
     }, attemptTimeout);
 }
+/*
+Iterates through PUT/POST command arguments and creates PutRequest/PostRequest objects, 
+adding each to the global requests variable. It logs any errors 
+encountered when making the objects.
+*/
 async function uploadIterThroughArgs(args, post = false) {
     args.forEach(arg => {
         try {
@@ -138,6 +160,10 @@ async function uploadIterThroughArgs(args, post = false) {
         }
     });
 }
+/*
+Initiates and completes a single http PUT/POST request based on the parameters 
+in the request object.
+*/
 function httpUpload(reqObj, callback = () => { }) {
     const options = {
         hostname: reqObj.hostname,
@@ -164,6 +190,10 @@ function httpUpload(reqObj, callback = () => { }) {
     initRequest(reqObj, undefined, callback);
     sendRequest(reqObj, reqObj.method === "PUT" ? reqObj.readStream : form);
 }
+/*
+Initializes the multicast socket for the client and subscribes
+to the address saved in 'multicastAddr'.
+*/
 async function initMulticastClient() {
     multicastClient.on("error", err => {
         console.error(err);
@@ -227,6 +257,11 @@ async function initMulticastClient() {
     });
     multicastClient.bind(multicastPort, ipAddr);
 }
+/*
+Sends a single multicast message to a specified address
+and port. It can optionally close the multicast connection
+after sending the message.
+*/
 function sendMulticastMsg(msg = "This is a sample multicast message (from client)", close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
@@ -237,6 +272,12 @@ function sendMulticastMsg(msg = "This is a sample multicast message (from client
     });
     if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
 }
+/*
+Uses a check function at regular intervals to determine 
+whether the multicast connection should be closed. If the 
+check function returns true, the connection is closed and
+the checking stops.
+*/
 function closeMulticastClient(checkFunction = () => {return true}, timeInterval = attemptTimeout) {
     const closeClient = setInterval(() => {
         if (checkFunction()) {
@@ -245,6 +286,12 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
         }
     }, timeInterval);
 }
+/*
+Initializes a single http request and determines the program's
+actions upon receiving a response. For GET requests, it 
+downloads the file sent and logs it. For PUT/POST requests, it 
+logs a successful upload.
+*/
 function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback = (success) => {return}) {
     reqObj.req.on("error", err => {
         console.error(err)
@@ -282,6 +329,12 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
         }
     });
 }
+/*
+Sends an initialized http request based on its type.
+GET requests can just be end()ed, whereas PUT/POST
+requests have their upload file's contents piped to
+the request object.
+*/
 function sendRequest(reqObj, readStream = null) {
     switch(reqObj.method) {
         case "GET":
@@ -297,16 +350,28 @@ function sendRequest(reqObj, readStream = null) {
     }
     if (debug) {console.log("Sent ", reqObj.req.method, " request to ", reqObj.req.host, ":", reqObj.port)}
 }
+/*
+Logs a successful upload based on the parameters in the request
+object and the UUID returned by the server.
+*/
 function logUpload(reqObj, serverUUID, callback = () => { }) {
     validateLogFile(uploadLogPath, uploadLogFormat);
     const today = new Date(Date.now());
     fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);
 }
+/*
+Logs a successful download based on the parameters in the request
+object.
+*/
 function logDownload(reqObj, callback = () => { }) { 
     validateLogFile(downloadLogPath, downloadLogFormat);
     const today = new Date(Date.now());
     fs.appendFile(downloadLogPath, `${reqObj.uuid}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
 }
+/*
+Returns true if the provided value is a valid UUID.
+Returns false if otherwise.
+*/
 function validUUID(val) {
     const newVal = val.replace(/-/g, "");
     if (newVal.length !== 32) { return false }
@@ -317,6 +382,11 @@ function validUUID(val) {
     }
     return true;
 }
+/*
+Ensures that the provided path to the log file exists,
+creating the file based on the format argument if
+necessary.
+*/
 function validateLogFile(path, format) {
     const logDir = path.split("/").slice(0, -1).join("/");
     if (!fs.existsSync(logDir)) {
@@ -328,7 +398,11 @@ function validateLogFile(path, format) {
         console.log("Created log file: " + path);
     }
 }
-function commandArgsHandler() {
+/*
+Processes the global argv variable and, based on its contents,
+makes changes to it and other global variables.
+*/
+function argsHandler() {
     if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
     if (argv.bucket !== undefined && !(typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.error("Invalid bucket ==> using default");}
     if (argv.outputFiles && typeof argv.outputFiles === "string" && argv.outputFiles.length > 0) {
@@ -343,6 +417,9 @@ function commandArgsHandler() {
     } else {argv.outputFiles = []}
         
 }
+/*
+Prints the help message.
+*/
 function printHelp() {
     console.log("Usage: <command> <param>... [-p, --port=portNumber] [-d, --debug]\n" +
                 "      command = GET | PUT | POST\n" +
@@ -360,6 +437,11 @@ function printHelp() {
                 "      noEncryption (-n): uploads unencrypted file contents\n"
     );
 }
+/*
+Parses the process arguments based on their formatting 
+and creates an argv variable containing raw, separated 
+argument data.
+*/
 function processArgv(args) {
     let argv = {_: []};
     args.forEach(arg => {
