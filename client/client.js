@@ -355,18 +355,20 @@ Logs a successful upload based on the parameters in the request
 object and the UUID returned by the server.
 */
 function logUpload(reqObj, serverUUID, callback = () => { }) {
-    validateLogFile(uploadLogPath, uploadLogFormat);
-    const today = new Date(Date.now());
-    fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);
+    validateLogFile(uploadLogPath, uploadLogFormat, () => {
+        const today = new Date(Date.now());
+        fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);    
+    });
 }
 /*
 Logs a successful download based on the parameters in the request
 object.
 */
 function logDownload(reqObj, callback = () => { }) { 
-    validateLogFile(downloadLogPath, downloadLogFormat);
-    const today = new Date(Date.now());
-    fs.appendFile(downloadLogPath, `${reqObj.uuid}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
+    validateLogFile(downloadLogPath, downloadLogFormat, () => {
+        const today = new Date(Date.now());
+        fs.appendFile(downloadLogPath, `${reqObj.uuid}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
+    });
 }
 /*
 Returns true if the provided value is a valid UUID.
@@ -387,7 +389,7 @@ Ensures that the provided path to the log file exists,
 creating the file based on the format argument if
 necessary.
 */
-function validateLogFile(path, format) {
+function validateLogFile(path, format, callback = () => { }) {
     const logDir = path.split("/").slice(0, -1).join("/");
     if (!fs.existsSync(logDir)) {
         fs.mkdirSync(logDir, { recursive: true });
@@ -397,6 +399,7 @@ function validateLogFile(path, format) {
         fs.appendFileSync(path, format.columns.join(",") + "\n");
         console.log("Created log file: " + path);
     }
+    callback();
 }
 /*
 Processes the global argv variable and, based on its contents,
