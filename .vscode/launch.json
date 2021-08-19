@@ -59,7 +59,7 @@
             "args": ["GET", "09d84ab98d994102a9a32a384e0423f9", "--debug", "--outputFiles=./../../DownloadedFile"]
         },
         {
-            "name": "Client GET encrypted (multiple output files w/ bad output file)",
+            "name": "Client GET (multiple output files w/ bad output file)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
             "skipFiles": [
