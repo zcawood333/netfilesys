@@ -37,7 +37,7 @@ class _Request {
 class GetRequest extends _Request {
     constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = '', port = null, downloadFileDir = __dirname, downloadFileName = undefined, fileKey) {
         super('GET', intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, fileKey);
-        this.checkFileKey(fileKey);
+        this._checkFileKey(fileKey);
         this.encrypted = fileKey.length > 32 ? true : false;
         this.fileKey = fileKey;
         this.uuid = fileKey.substr(0, 32);
@@ -49,10 +49,10 @@ class GetRequest extends _Request {
         }
         this.downloadFileDir = downloadFileDir;
         this.downloadFileName = downloadFileName ? downloadFileName : fileKey;
-        this.downloadFilePath = this.genDownloadPath(this.downloadFileDir, this.downloadFileName);
-        this.writeStream = this.genWriteStream(this.encrypted, this.downloadFilePath, this.key, this.iv);
+        this.downloadFilePath = this._genDownloadPath(this.downloadFileDir, this.downloadFileName);
+        this.writeStream = this._genWriteStream(this.encrypted, this.downloadFilePath, this.key, this.iv);
     }
-    checkFileKey(fileKey) {
+    _checkFileKey(fileKey) {
         if (fileKey.length !== 32 && fileKey.length !== 80) { //must either be 32 or 80 characters
             clearInterval(this.interval); //originally set in super() call
             throw new Error('Invalid file key: incorrect length');
@@ -65,7 +65,7 @@ class GetRequest extends _Request {
             }
         }
     }
-    genDownloadPath(downloadFileDir, downloadFileName) {
+    _genDownloadPath(downloadFileDir, downloadFileName) {
         if (downloadFileDir === undefined) {throw new Error(`Invalid downloadFileDir: ${downloadFileDir}`);}
         if (!fs.existsSync(downloadFileDir)) {
             fs.mkdirSync(downloadFileDir, { recursive: true });
@@ -73,7 +73,7 @@ class GetRequest extends _Request {
         return downloadFileDir + '/' + downloadFileName;
 
     }
-    genWriteStream(encrypted, downloadFilePath, key, iv) {
+    _genWriteStream(encrypted, downloadFilePath, key, iv) {
         try {
             if (encrypted) {
                 const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
@@ -122,7 +122,7 @@ class GetRequest extends _Request {
 class _UploadRequest extends _Request {
     constructor(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
         super(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
-        this.checkFilePath(filePath);
+        this._checkFilePath(filePath);
         this.bucket = bucket;
         this.encrypted = encrypted;
         this.filePath = filePath;
@@ -135,15 +135,15 @@ class _UploadRequest extends _Request {
             this.key = uuidv4().replace(/-/g, '');
             this.iv = crypto.randomBytes(8).toString('hex');
         }
-        this.readStream = this.genReadStream(this.encrypted, this.filePath, this.key, this.iv);        
+        this.readStream = this._genReadStream(this.encrypted, this.filePath, this.key, this.iv);        
     }
-    checkFilePath(filePath) {
+    _checkFilePath(filePath) {
         if (!fs.existsSync(filePath)) {
             clearInterval(this.interval);
             throw new Error(`File path (${filePath}) does not exist`);
         }
     }
-    genReadStream(encrypted, filePath, key, iv) {
+    _genReadStream(encrypted, filePath, key, iv) {
         try {
             if (encrypted) {
                 const readStream = fs.createReadStream(filePath);
