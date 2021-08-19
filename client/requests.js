@@ -11,12 +11,13 @@ class _Request {
         this.maxAttempts = maxAttempts;
         this.interval = setInterval(() => {
             if (!this.intervalLock) {
-                this.intervalFunc();
-                this.attempts++;
                 if (this.attempts >= this.maxAttempts) {
                     this.failed = true;
                     this.end();
                     console.log(`FAILED: ${this.arg}`)
+                } else {
+                    this.intervalFunc();
+                    this.attempts++;
                 }
             }
         }, intervalPeriod);
