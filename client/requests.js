@@ -54,13 +54,13 @@ class GetRequest extends _Request {
     }
     _checkFileKey(fileKey) {
         if (fileKey.length !== 32 && fileKey.length !== 80) { //must either be 32 or 80 characters
-            clearInterval(this.interval); //originally set in super() call
+            this.end();
             throw new Error('Invalid file key: incorrect length');
         }
         for(let i = 0; i < fileKey.length; i++) { //must have all hex digits
             const char =  fileKey.charAt(i);
             if (!((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f'))) {
-                clearInterval(this.interval); //originally set in super() call
+                this.end();
                 throw new Error(`Invalid file key (${fileKey}): must be fully hexadecimal`);
             }
         }
@@ -139,7 +139,7 @@ class _UploadRequest extends _Request {
     }
     _checkFilePath(filePath) {
         if (!fs.existsSync(filePath)) {
-            clearInterval(this.interval);
+            this.end();
             throw new Error(`File path (${filePath}) does not exist`);
         }
     }
@@ -173,7 +173,7 @@ class _UploadRequest extends _Request {
                 return readStream;
             }
         } catch {
-            clearInterval(this.interval);
+            this.end();
             throw new Error(`Cannot generate ${encrypted ? 'encrypted ' : ''}readStream from file path ${filePath}`);
         }
     }
