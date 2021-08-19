@@ -3,3 +3,4 @@ downloads/
 tmp/
 logs/
 saved_logs/
+*.sh
