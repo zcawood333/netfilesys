@@ -1,7 +1,7 @@
 {
-  "name": "node_proj",
+  "name": "server",
   "version": "1.0.0",
-  "description": "post/put/get files to and from servers",
+  "description": "processes multicast messages and http requests from client",
   "main": "server.js",
   "scripts": {
     "test": "node server.js"
