@@ -1,25 +1,23 @@
 #!/usr/bin/node
 
 const argv = processArgv(process.argv.slice(2));
-const express = require("express");
-const app = express();
+const app = require("express")();
 const fileUpload = require("express-fileupload");
-const diskusage = require("diskusage");
-const mountPoint = "/";
 const errorHandler = require("errorhandler")
 const dgram = require("dgram");
-const multicastServer = dgram.createSocket({type: "udp4", reuseAddr: true});
-const multicastAddr = "230.185.192.108";
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 const ipAddr = require("ip").address();
+const diskusage = require("diskusage");
+const buckets = require("./buckets").initBuckets();
+const multicastServer = dgram.createSocket({type: "udp4", reuseAddr: true});
+const multicastAddr = "230.185.192.108";
 const backlog = 5;
 const uploadsDir = `${__dirname}/uploads`;
 const uploadLogPath = `${__dirname}/logs/upload_log.csv`;
 const uploadLogFormat = {columns: ["method","filename","uuid","bucket","datetime"]}
 const downloadLogPath = `${__dirname}/logs/download_log.csv`;
 const downloadLogFormat = {columns: ["uuid","datetime"]};
-const buckets = require("./buckets").initBuckets();
 
 //testing variables
 let debug = false;
@@ -56,13 +54,11 @@ app.post("/upload", (req, res) => {
     uploadMultipartFile(req, res);
 });
 
-//start both http and udp server
-if (debug) console.log(`Starting http based server on ${ipAddr}:${httpPort}`);
+//start http and multicast server
 const listener = app.listen(httpPort, ipAddr, backlog, () => {
-    if (debug) {console.log(`Starting http based server: `, listener.address())}
+    if (debug) {console.log("Starting http server:", listener.address())}
     httpBoundPort = listener.address().port;
 });
-if (debug) console.log(`Starting multicastServer on port ${multicastPort}`);
 initMulticastServer();
 
 //FUNCTIONS
@@ -73,8 +69,7 @@ function initMulticastServer() {
     multicastServer.on("listening", err => {
         if (err) {console.error(err); return; }
         if (debug) {
-            console.log(`multicastServer listening on multicast address ${multicastAddr}`);
-            console.log("multicastServer bound to address: ", multicastServer.address());
+            console.log("Starting multicast server:", multicastServer.address(), "listening on", multicastAddr);
         }
         multicastServer.setBroadcast(true);
         multicastServer.setMulticastTTL(128); 
@@ -84,10 +79,10 @@ function initMulticastServer() {
         if (debug) {console.log("From: " + remote.address + ":" + remote.port +" - " + message)};
         switch (message.toString().charAt(0)) {
             case "g":
-                multicastGet(message, remote);
+                multicastGet(message);
                 break;
             case "u":
-                multicastPut(message, remote);
+                multicastUpload(message);
                 break;
             default:
                 break;
@@ -96,42 +91,44 @@ function initMulticastServer() {
     multicastServer.bind(multicastPort, ipAddr);
     
 }
-function sendMulticastMsg(msg = "this is a sample multicast message (from server)", close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
+function sendMulticastMsg(msg = "This is a sample multicast message (from server)", close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
     const message = new Buffer.from(msg);
     multicastServer.send(message, 0, message.length, targetPort, targetAddr, () => {
         if (close) {
             multicastServer.close();
-            if (debug) {console.log("multicastServer closed")}
+            if (debug) {console.log("Multicast server closed")}
         }
     });
     if (debug) {console.log("Sent " + message + " to " + targetAddr + ":" + targetPort)}
 }
-function multicastGet(message, remote) {
+function multicastGet(message) {
     const uuid = message.toString().slice(1);
-    const path = uuid.replace(/-/g,"").replace(/(.{3})/g, "$1/");
-    if (Object.values(buckets).some(bucket => {
-        if (bucket.fileExists(path)) {
-            return true;
-        } else {
-            return false;
+    if (validUUID(uuid)) {
+        const path = uuid.replace(/-/g,"").replace(/(.{3})/g, "$1/");
+        if (Object.values(buckets).some(bucket => {
+            if (bucket.fileExists(path)) {
+                return true;
+            } else {
+                return false;
+            }
+        })) {
+            sendMulticastMsg("h" + uuid + ":" + httpBoundPort, false, multicastPort, multicastAddr);
         }
-    })) {
-        sendMulticastMsg("h" + uuid + ":" + httpBoundPort, false, multicastPort, multicastAddr);
     }
 }
-function multicastPut(message, remote) {
+function multicastUpload(message) {
     const uuidAndSize = message.toString().slice(1).split(":");
     const uuid = uuidAndSize[0];
-    const size = uuidAndSize[1];
-    if (debug) {console.log(`parsed uuid: ${uuid}`)}
-    if (diskusage.checkSync(mountPoint).available > size) {
-        sendMulticastMsg("s" + uuid + ":" + httpBoundPort, false, multicastPort, multicastAddr);
+    if (validUUID(uuid) && uuidAndSize.length === 2) {
+        const size = uuidAndSize[1];
+        if (diskusage.checkSync(uploadsDir).available > size) {
+            sendMulticastMsg("s" + uuid + ":" + httpBoundPort, false, multicastPort, multicastAddr);
+        }
     }
 }
 function uploadMultipartFile(req, res) {
     if (debug) {
         console.log("POST request headers: ", req.headers);
-        console.log("POST request body: ", req.body);
         console.log("Files: ", req.files);
     }
     //pulled from example: https://github.com/richardgirges/express-fileupload/tree/master/example
@@ -152,7 +149,7 @@ function uploadMultipartFile(req, res) {
     fp = req.files.fileKey;
     fp.mv(path, err => {
         if (err) {
-            if (debug) {console.log("file unable to be uploaded (1)", err)};
+            if (debug) {console.log("File unable to be uploaded (1)", err)};
             return res.status(500).send(err);
         } else {
             if (debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
@@ -160,7 +157,7 @@ function uploadMultipartFile(req, res) {
             const today = new Date(Date.now());
             fs.appendFile(uploadLogPath, `POST,${fp.name},${noDashesUUID},${req.get("bucket")},${today.toISOString()}\n`, err => {
                 if (err) {
-                    if (debug) {console.log("file unable to be uploaded (2)", err)};
+                    if (debug) {console.log("File unable to be uploaded (2)", err)};
                     fs.rm(path, err => {
                         if (err) {
                             if (debug) {console.log(`File ${fp.name} unable to be removed at ${path}`)};
@@ -170,7 +167,7 @@ function uploadMultipartFile(req, res) {
                     });
                     return res.status(500).send(err);
                 } else {
-                    if (debug) {console.log("file upload logged successfully")};
+                    if (debug) {console.log("File upload logged successfully")};
                     res.send(noDashesUUID);
                     bucketHandler(req.get("bucket"));
                 };
@@ -181,7 +178,6 @@ function uploadMultipartFile(req, res) {
 function uploadDirectFile(req, res) {
     if (debug) {
         console.log("PUT request headers: ", req.headers);
-        console.log("PUT request body: ", req.body);
     }
     //generate and parse uuid/filepath
     const noDashesUUID = genDashlessUUID();
@@ -226,7 +222,7 @@ function uploadDirectFile(req, res) {
         const fileName = req.get("fileName");
         fs.appendFile(uploadLogPath, `PUT,${fileName ? fileName : ""},${noDashesUUID},${req.get("bucket")},${today.toISOString()}\n`, err => {
             if (err) {
-                if (debug) {console.log("file unable to be uploaded (3)", err)};
+                if (debug) {console.log("File unable to be uploaded (3)", err)};
                 fs.rm(path, err => {
                     if (err) {
                         if (debug) {console.log(`File unable to be removed at ${path}`)};
@@ -236,7 +232,7 @@ function uploadDirectFile(req, res) {
                 });
                 return res.status(500).send(err);
             } else {
-                if (debug) {console.log("file upload logged successfully")};
+                if (debug) {console.log("File upload logged successfully")};
                 res.send(noDashesUUID);
                 fileStream.close();
                 bucketHandler(req.get("bucket"));
@@ -264,18 +260,18 @@ function downloadFile(req, res) {
         });
         if (path === undefined) {return res.status(500).send(new Error("File not found"));}
         
-        if (debug) {console.log(`path: ${path}`)};
+        if (debug) {console.log(`File path: ${path}`)};
     
         validateLogFile(downloadLogPath, downloadLogFormat, () => {
             const today = new Date(Date.now());
             fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
                 if (err) {
-                    if (debug) {console.log("file download unable to be logged", err)};
+                    if (debug) {console.log("File download unable to be logged", err)};
                     return res.status(500).send(err);
                 } else {
                     res.download(path, err => {
                         if (err) {
-                            if (debug) {console.log("file unable to be downloaded", err)};
+                            if (debug) {console.log("File unable to be downloaded", err)};
                             //remove last line from log file
                             deleteLastDownloadLog();
                             //normally returns full path which may be undesirable to leak so path is reset
@@ -283,7 +279,7 @@ function downloadFile(req, res) {
                             return res.status(500).send(err);
                         } else {
                             if (debug) {
-                                console.log("file downloaded/logged successfully");
+                                console.log("File downloaded/logged successfully");
                             }
                         }
                     })
@@ -297,16 +293,16 @@ function quickDownload(req, res, fileContents) {
         const today = new Date(Date.now());
         fs.appendFile(downloadLogPath, `${req.params.uuid},${today.toISOString()}\n`, err => {
             if (err) {
-                if (debug) {console.log("file download unable to be logged", err)};
+                if (debug) {console.log("File download unable to be logged", err)};
                 return res.status(500).send(err);
             } else {
                 try {
                     res.status(200).send(fileContents);
                     if (debug) {
-                        console.log("file downloaded/logged successfully");
+                        console.log("File downloaded/logged successfully");
                     }
                 } catch(err) {
-                    if (debug) {console.log("file unable to be downloaded", err)};
+                    if (debug) {console.log("File unable to be downloaded", err)};
                     //remove last line from log file
                     deleteLastDownloadLog();
                     //normally returns full path which may be undesirable to leak so path is reset
@@ -320,15 +316,15 @@ function quickDownload(req, res, fileContents) {
 function deleteLastDownloadLog() {
     fs.readFile(downloadLogPath, (err, data) => {
         if (err) {
-            if (debug) {console.log("download log file unable to be modified; most recent log is invalid")};
+            if (debug) {console.log("Download log file unable to be modified; most recent log is invalid")};
         } else {
             //need to slice to -2 because there is a new line character after last entry
             const newData = data.toString().split("\n").slice(0,-2).join("\n") + "\n";
             fs.writeFile(downloadLogPath, newData, err => {
                 if (err) {
-                    if (debug) {console.log("download log file unable to be written to; it may now be corrupted")};
+                    if (debug) {console.log("Download log file unable to be written to; it may now be corrupted")};
                 } else {
-                    if (debug) {console.log("download log file updated to remove bad download line")};
+                    if (debug) {console.log("Download log file updated to remove bad download line")};
                 }
             });
         }
@@ -342,7 +338,6 @@ function genDashlessUUID() { //returns a dashless uuid
 function createPath(noDashesUUID, req) {
     const bucket = req.get("bucket");
     const uuidPath = noDashesUUID.replace(/(.{3})/g,"$1/")
-    if (debug) {console.log(`uuid turned into path: ${uuidPath}`)};
     let fullPath = undefined;
     if (buckets[bucket]) {
         fullPath = `${uploadsDir}/${buckets[bucket].mountPoint}/${uuidPath}`;
@@ -356,7 +351,7 @@ function validateLogFile(path, format, callback = () => { }) {
     validateDirPath(logDir, () => {
         if (!fs.existsSync(path)) {
             fs.appendFileSync(path, format.columns.join(",") + "\n");
-            if (debug) {console.log("created log file: " + path);}
+            if (debug) {console.log("Created log file: " + path);}
         }
         callback();
     });
@@ -365,7 +360,7 @@ function validateLogFile(path, format, callback = () => { }) {
 function validateDirPath(dirPath, callback = () => { }) {
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
-        if (debug) {console.log("created dir path: " + dirPath);}
+        if (debug) {console.log("Created dir path: " + dirPath);}
     }
     callback();
 }
@@ -377,6 +372,16 @@ function bucketHandler(bucket) {
         default:
             break;
     }
+}
+function validUUID(val) {
+    const newVal = val.replace(/-/g, "");
+    if (newVal.length !== 32) { return false }
+    for (let i = 0; i < newVal.length; i++) {
+        const char = newVal.charAt(i);
+        if ((char >= "0" && char <= "9") || (char >= "a" && char <= "f")) { continue }
+        return false;
+    }
+    return true;
 }
 function processArgv(args) {
     let argv = {_: []};
