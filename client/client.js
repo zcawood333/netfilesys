@@ -198,8 +198,6 @@ async function initMulticastClient() {
                     //get file from server claiming to have it
                     httpGet(reqObj, success => {
                         if (success) {
-                            //clear uuid interval and delete request
-                            clearInterval(reqObj.interval);
                             delete requests[uuid];
                         } else {
                             //keep trying the request
@@ -219,8 +217,6 @@ async function initMulticastClient() {
                     //upload file to server claiming to have space
                     httpUpload(reqObj, success => {
                         if (success) {
-                            //clear uuid interval
-                            clearInterval(reqObj.interval);
                             delete requests[uuid];
                         } else {
                             reqObj.intervalLock = false;
@@ -261,10 +257,14 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
         if (debug) { console.log(`statusCode: ${res.statusCode}`) }
         if (res.statusCode === 200) {
             if (reqObj.method === 'GET') {
-                reqObj.writeStream.on('end', () => { //'writeStream' has 'end' event because it is actually a crypto transform stream forwarding to the download file
+                reqObj.writeStream.on('finish', () => { 
                     if (debug) { console.log(`File downloaded to ${reqObj.downloadFilePath}`)}
+                    reqObj.end();
                 });
                 res.pipe(reqObj.writeStream);
+            } else {
+                //successfully uploaded a file with POST or PUT
+                reqObj.end();
             }
             res.on('data', d => {
                 if (debug) { console.log('data: ', d.toString()); }
@@ -278,6 +278,8 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
                     });
                 }
             });
+            getCallback(true); 
+            uploadCallback(true);
         } else {
             getCallback(false);
             uploadCallback(false);

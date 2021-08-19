@@ -14,8 +14,8 @@ class _Request {
                 this.intervalFunc();
                 this.attempts++;
                 if (this.attempts >= this.maxAttempts) {
-                    clearInterval(this.interval);
                     this.failed = true;
+                    this.end();
                     console.log(`FAILED: ${this.arg}`)
                 }
             }
@@ -26,6 +26,11 @@ class _Request {
         this.port = port;
         this.arg = arg; //filekey for get requests
         this.failed = false;
+    }
+    end() {
+        try {
+            clearInterval(this.interval);
+        } catch {}
     }
 }
 class GetRequest extends _Request {
@@ -42,7 +47,7 @@ class GetRequest extends _Request {
             this.iv = fileKey.slice(64);
         }
         this.downloadFileDir = downloadFileDir;
-        this.downloadFileName = downloadFileName !== undefined ? downloadFileName : fileKey;
+        this.downloadFileName = downloadFileName ? downloadFileName : fileKey;
         this.downloadFilePath = this.genDownloadPath(this.downloadFileDir, this.downloadFileName);
         this.writeStream = this.genWriteStream(this.encrypted, this.downloadFilePath, this.key, this.iv);
     }
@@ -71,34 +76,46 @@ class GetRequest extends _Request {
         try {
             if (encrypted) {
                 const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-                const writeStream = fs.createWriteStream(downloadFilePath);
                 decipher.on('error', err => {
                     console.error(err);
-                    writeStream.close();
+                    this.failed = true;
                     decipher.close();
                 });
                 decipher.on('pipe', () => {
+                    const writeStream = fs.createWriteStream(downloadFilePath);
+                    writeStream.on('error', err => {
+                        console.error(err);
+                        this.failed = true;
+                        decipher.close();
+                        writeStream.close();
+                    });
                     decipher.pipe(writeStream);
                 });
-                writeStream.on('error', err => {
-                    console.error(err);
-                    decipher.close();
-                    writeStream.close();
-                });
-                
                 return decipher;
             } else {
                 const writeStream = fs.createWriteStream(downloadFilePath);
                 writeStream.on('error', err => {
                     console.error(err);
+                    this.failed = true;
                     writeStream.close();
                 });
                 return writeStream;
             }
         } catch {
-            clearInterval(this.interval); //originally set in super() call
+            this.end();
             throw new Error(`Cannot generate ${encrypted ? 'decryption tunnel' : 'writeStream'} to ${downloadFilePath}`);
         }
+    }
+    end() {
+        super.end();
+        try {
+            this.writeStream.close();
+        } catch {}
+        try {
+            if (this.failed) {
+                fs.rm(this.downloadFilePath, () => {});
+            }
+        } catch {}
     }
 }
 class _UploadRequest extends _Request {
@@ -121,6 +138,7 @@ class _UploadRequest extends _Request {
     }
     checkFilePath(filePath) {
         if (!fs.existsSync(filePath)) {
+            clearInterval(this.interval);
             throw new Error(`File path (${filePath}) does not exist`);
         }
     }
@@ -154,8 +172,15 @@ class _UploadRequest extends _Request {
                 return readStream;
             }
         } catch {
+            clearInterval(this.interval);
             throw new Error(`Cannot generate ${encrypted ? 'encrypted ' : ''}readStream from file path ${filePath}`);
         }
+    }
+    end() {
+        super.end();
+        try {
+            this.readStream.close();
+        } catch {}
     }
 }
 class PutRequest extends _UploadRequest {
