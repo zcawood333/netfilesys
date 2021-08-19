@@ -411,6 +411,56 @@
             "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug"]
         },
         {
+            "name": "Client PUT encrypted ('std' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=std"]
+        },
+        {
+            "name": "Client PUT encrypted ('tmp1' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=tmp1"]
+        },
+        {
+            "name": "Client PUT encrypted ('tmp2' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=tmp2"]
+        },
+        {
+            "name": "Client PUT encrypted ('tmp4' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=tmp4"]
+        },
+        {
+            "name": "Client PUT encrypted ('quick' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["PUT", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=quick"]
+        },
+        {
             "name": "Client PUT encrypted (file doesn't exist)",
             "program": "${workspaceFolder}/client/client.js",
             "request": "launch",
@@ -553,6 +603,56 @@
             ],
             "type": "pwa-node",
             "args": ["POST", "${workspaceFolder}/../test_files_to_upload/b.txt", "--debug"]
+        },
+        {
+            "name": "Client POST encrypted ('std' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=std"]
+        },
+        {
+            "name": "Client POST encrypted ('tmp1' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=tmp1"]
+        },
+        {
+            "name": "Client POST encrypted ('tmp2' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=tmp2"]
+        },
+        {
+            "name": "Client POST encrypted ('tmp4' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=tmp4"]
+        },
+        {
+            "name": "Client POST encrypted ('quick' bucket)",
+            "program": "${workspaceFolder}/client/client.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node",
+            "args": ["POST", "${workspaceFolder}/../test_files_to_upload/a.txt", "--debug", "--bucket=quick"]
         },
         {
             "name": "Client POST encrypted (file doesn't exist)",
