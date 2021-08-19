@@ -690,36 +690,6 @@
                             "${workspaceFolder}/../test_files_to_upload/doesNotExist.txt",
                             "${workspaceFolder}/../test_files_to_upload/c.txt", 
                             "--debug"]
-        },
-        {
-            "type": "pwa-node",
-            "request": "launch",
-            "name": "Client Upload",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/client/client.js",
-            "args": ["--debug", "--method=POST", "--path=/upload", "--fpath=${workspaceFolder}/../test_files_to_upload/c.txt"]
-        },
-        {
-            "name": "Client Download",
-            "program": "${workspaceFolder}/client/client.js",
-            "request": "launch",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "pwa-node",
-            "args": ["--debug", "--path=/download/09d84ab98d994102a9a32a384e0423f9"]
-        },
-        {
-            "name": "Client Multicast",
-            "program": "${workspaceFolder}/client/client.js",
-            "request": "launch",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "pwa-node",
-            "args": ["--debug", "--multicast='this is a multicast message from the client'"]
         },        
     ]
 }
