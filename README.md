@@ -62,3 +62,70 @@ The client uses multicast to asynchronously poll subscribed servers for files it
 -p/--port=portNumber sets the multicast port the client will send messages to and listen on.
 #### Debug
 -d/--debug turns on debugging output.
+
+# Developer
+
+## Examples
+
+### Client Node Example
+
+```
+fs = require("netfilesys-client");
+
+fs.init(host, time, .....);  // none this needed, if you just use the defaults.
+
+// async
+fs.put('example.jpg', function(key, error) {
+  if (key) {
+    fs.set_timeout(10);
+    fs.get(key, filename, function(err) {
+      console.log('got the file back');
+    });
+  }
+});
+fs.put('example2.jpg', function(key, error) {
+  console.log('File 2 got stored too!');
+}
+
+fs.wait();
+
+// syncronous
+var key = fs.sync_put('example.jpg');
+fs.sync_get(key, filename);
+
+```
+### Client C Example
+```
+#include netfilesys.h
+
+int main() {
+  char *key;
+  void *fs;
+ 
+  fs = netfilesys_init();
+  netfilesys_set_cluster(fs, "230.185.192.108");  // cluster ip. this is optional since it is this by default.
+  netfilesys_set_timeout(fs, 3);                  // timeout in seconds
+  
+  key = fs_get(fs, "example.jpg");
+  if (key) {
+    fs_put(fs, key, "fetched-example.jpg");
+  } else {
+    printf("Error");
+  }
+}
+
+```
+
+### Server Plugin Example
+
+The server has the ability to have plugins to handle requests for files that are not found.  The folder plugins is loaded from the plugins directory.  Any request is passed to the Resolve() function if the key is not found.
+
+Example plugin:
+```
+function resolve(URL) {
+  //fetch the file from google images randomly.
+  // return the pipe() to the connection to images so the client gets the file.
+}
+
+module.exports.resolve = resolve
+```
