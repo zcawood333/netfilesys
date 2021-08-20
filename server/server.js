@@ -62,7 +62,7 @@ const listener = app.listen(httpPort, ipAddr, backlog, () => {
 initMulticastServer();
 
 //FUNCTIONS
-/*
+/**
 Initializes the multicast socket for the server and subscribes
 to the address saved in 'multicastAddr'.
 */
@@ -95,7 +95,7 @@ function initMulticastServer() {
     multicastServer.bind(multicastPort, ipAddr);
     
 }
-/*
+/**
 Sends a single multicast message to a specified address
 and port. It can optionally close the multicast connection
 after sending the message.
@@ -110,7 +110,7 @@ function sendMulticastMsg(msg = "This is a sample multicast message (from server
     });
     if (debug) {console.log("Sent " + message + " to " + targetAddr + ":" + targetPort)}
 }
-/*
+/**
 Parses a multicast message preceding a GET request and, 
 if the server has the file, sends a response to the source.
 */
@@ -129,7 +129,7 @@ function multicastGet(message) {
         }
     }
 }
-/*
+/**
 Parses a multicast message preceding a PUT/POST request
 and, if the server has enough room for the file to be 
 uploaded, sends a response to the source.
@@ -144,7 +144,7 @@ function multicastUpload(message) {
         }
     }
 }
-/*
+/**
 Handles an http POST request. It determines if the request 
 has an attached file and uploads it to the correct bucket 
 if possible. The file is stored under a UUID-based path. 
@@ -200,7 +200,7 @@ function uploadMultipartFile(req, res) {
         };
     });
 }
-/*
+/**
 Handles an http PUT request. It uploads the request's contents 
 to the correct bucket if possible. The file is stored under a 
 UUID-based path. It logs the upload if successful and sends a 
@@ -273,7 +273,7 @@ function uploadDirectFile(req, res) {
     });
     req.pipe(fileStream); 
 }
-/*
+/**
 Handles an http GET request. If the server has the file requested,
 it retrieves it and sends it as the response to the source. If 
 successful, it logs the download.
@@ -325,7 +325,7 @@ function downloadFile(req, res) {
         });
     }
 }
-/*
+/**
 Handles downloads from the 'quick' bucket. The bucket 
 stores all files within it in memory, so rather than 
 opening the file and reading, the file contents are 
@@ -357,7 +357,7 @@ function quickDownload(req, res, fileContents) {
         });
     });
 }
-/*
+/**
 Deletes the last line of the download log file.
 This is necessary because the log must be written before sending a 
 download. If a download is sent before logging, then the logging may fail 
@@ -383,7 +383,7 @@ function deleteLastDownloadLog() {
         }
     });
 }
-/*
+/**
 Generates and returns a UUID without dashes.
 */
 function genDashlessUUID() {
@@ -391,7 +391,7 @@ function genDashlessUUID() {
     const noDashesUUID = ogUUID.replace(/-/g,"");
     return noDashesUUID;
 }
-/*
+/**
 Parses a UUID without dashes and uses the bucket header 
 within the request object to determine and return the 
 file path for the to-be-uploaded file.
@@ -407,7 +407,7 @@ function createPath(noDashesUUID, req) {
     }
     return fullPath;
 }
-/*
+/**
 Ensures that the provided path to the log file exists,
 creating the file based on the format argument if
 necessary.
@@ -423,7 +423,7 @@ function validateLogFile(path, format, callback = () => { }) {
     });
     
 }
-/*
+/**
 Ensures that the provided directory path exists,
 creating the path if necessary.
 */
@@ -434,7 +434,7 @@ function validateDirPath(dirPath, callback = () => { }) {
     }
     callback();
 }
-/*
+/**
 Handles any bucket-specific actions after completing 
 a request. Mainly called to ensure the 'quick' bucket 
 is up to date, but implemented to allow for future additions.
@@ -448,7 +448,7 @@ function bucketHandler(bucket) {
             break;
     }
 }
-/*
+/**
 Returns true if the provided value is a valid UUID.
 Returns false if otherwise.
 */
@@ -462,7 +462,7 @@ function validUUID(val) {
     }
     return true;
 }
-/*
+/**
 Parses the process arguments based on their formatting 
 and creates an argv variable containing raw, separated 
 argument data.
@@ -492,7 +492,7 @@ function processArgv(args) {
     });
     return argv;
 }
-/*
+/**
 Processes the global argv variable and, based on its contents,
 makes changes to it and other global variables.
 */
