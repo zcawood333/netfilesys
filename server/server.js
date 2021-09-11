@@ -36,9 +36,11 @@ if (debug) {
 app.use(fileUpload());
 app.use(errorHandler());
 
-app.get("/exist", (req, res) => {
-    res.send("Hello world\n");
-});
+if (debug) {
+    app.get("/exist", (req, res) => {
+        res.send("Hello world\n");
+    });
+}
 
 app.get("/download/:uuid", (req, res) => {
     downloadFile(req, res);
@@ -205,7 +207,7 @@ function putFile(req, res) {
                 if (debug) {console.log("File upload logged successfully")};
                 res.send(noDashesUUID);
                 fileStream.close();
-                bucketHandler(req.get("bucket"));
+                if (req.get("bucket") == "quick") { buckets["quick"].sync() }
             }
         });
     });
@@ -374,20 +376,6 @@ function validateDirPath(dirPath, callback = () => { }) {
     callback();
 }
 /**
-Handles any bucket-specific actions after completing 
-a request. Mainly called to ensure the 'quick' bucket 
-is up to date, but implemented to allow for future additions.
-*/
-function bucketHandler(bucket) {
-    switch(bucket) {
-        case "quick":
-            buckets[bucket].sync();
-            break;
-        default:
-            break;
-    }
-}
-/**
 Returns true if the provided value is a valid UUID.
 Returns false if otherwise.
 */
@@ -411,8 +399,6 @@ function processArgv(args) {
             throw new Error("Invalid parameter: " + error);
         }
         [symbol, params] = arg.split("=");
-        console.log("symbol: " + symbol);
-        console.log("params: " + params);
         switch(symbol) {
             // flags
             case "-d":
