@@ -135,6 +135,7 @@ class PutRequest extends _Request {
             this.iv = crypto.randomBytes(8).toString("hex");
         }
         this.readStream = this._genReadStream(this.encrypted, this.filePath, this.key, this.iv);        
+        this.fileKey = undefined; // defined after uploading
     }
     _checkFilePath(filePath) {
         if (!fs.existsSync(filePath)) {
