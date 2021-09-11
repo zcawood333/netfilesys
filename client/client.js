@@ -167,7 +167,9 @@ function httpPut(reqObj, callback = () => { }) {
         if (debug) { console.log(`Sent ${reqObj.encrypted ? "encrypted" : "unencrypted"} PUT from filePath: ${reqObj.filePath}`); }
     });
     reqObj.req = http.request(options);
-    reqObj.req.setHeader("bucket", reqObj.bucket);
+    if (reqObj.bucket != undefined) {
+        reqObj.req.setHeader("bucket", reqObj.bucket);
+    }
     reqObj.req.setHeader("fileName", reqObj.fileName);
     initRequest(reqObj, undefined, callback);
     sendRequest(reqObj, reqObj.readStream);

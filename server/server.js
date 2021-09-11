@@ -192,7 +192,7 @@ function putFile(req, res) {
         validateLogFile(uploadLogPath, uploadLogFormat);
         const today = new Date(Date.now());
         const fileName = req.get("fileName");
-        fs.appendFile(uploadLogPath, `PUT,${fileName ? fileName : ""},${noDashesUUID},${req.get("bucket")},${today.toISOString()}\n`, err => {
+        fs.appendFile(uploadLogPath, `PUT,${fileName ? fileName : ""},${noDashesUUID},${req.get("bucket") == undefined ? "default" : req.get("bucket")},${today.toISOString()}\n`, err => {
             if (err) {
                 if (debug) {console.log("File unable to be uploaded (3)", err)};
                 fs.rm(path, err => {
@@ -337,7 +337,8 @@ within the request object to determine and return the
 file path for the to-be-uploaded file.
 */
 function createPath(noDashesUUID, req) {
-    const bucket = req.get("bucket");
+    let bucket = req.get("bucket");
+    if (bucket == undefined) {bucket = 'default';}
     const uuidPath = noDashesUUID.replace(/(.{3})/g,"$1/")
     let fullPath = undefined;
     if (buckets[bucket]) {
