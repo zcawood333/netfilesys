@@ -1,14 +1,14 @@
 #!/usr/bin/node
 
-const argv = processArgv(process.argv.slice(2));
 const http = require("http");
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 const dgram = require("dgram");
-const multicastClient = dgram.createSocket({type: "udp4", reuseAddr: true});
-const multicastAddr = "230.185.192.108";
 const ipAddr = require("ip").address();
 const { exit } = require("process");
+const { GetRequest, PutRequest } = require("./requests");
+const multicastClient = dgram.createSocket({type: "udp4", reuseAddr: true});
+const multicastAddr = "230.185.192.108";
 const numAttempts = 8; // number of attempts to complete a command (send multicast message)
 const attemptTimeout = 200; // milliseconds attempts will wait before trying again
 const downloadDir = `${__dirname}/downloads`; //where files downloaded with GET are stored
@@ -18,15 +18,17 @@ const downloadLogPath = `${__dirname}/logs/download_log.csv`; //stores fileKeys 
 const downloadLogFormat = {columns: ["uuid","datetime"]} //used to create log file if missing
 const maxFileLengthBytes = 255;
 const requests = {};
-const { GetRequest, PutRequest, PostRequest } = require("./requests");
 
-//command defaults
+
+//defaults
+let debug = false;
 let multicastPort = 5001;
 
+//argv processing
+const argv = processArgv(process.argv.slice(2));
+
 //debugging
-let debug = false;
-if (argv.debug) {
-    debug = true;
+if (debug) {
     console.log("DEBUG OUTPUT ON");
 }
 
@@ -39,7 +41,7 @@ if (argv.help || (process.argv.length <= 2 || argv._length <= 0 || argv._[0] == 
 }
 
 if (argv._.length > 0) {
-    argsHandler();
+    //argsHandler();
     switch (argv._[0].toLowerCase()) {
         case "get":
             get();
@@ -380,25 +382,6 @@ function validateLogFile(path, format, callback = () => { }) {
     callback();
 }
 /**
-Processes the global argv variable and, based on its contents,
-makes changes to it and other global variables.
-*/
-function argsHandler() {
-    if (argv.port && typeof argv.port === "string" && argv.port.length > 0) {multicastPort = Number(argv.port)}
-    if (argv.bucket !== undefined && !(typeof argv.bucket === "string" && argv.bucket.length > 0)) {argv.bucket = undefined; console.error("Invalid bucket ==> using default");}
-    if (argv.outputFiles && typeof argv.outputFiles === "string" && argv.outputFiles.length > 0) {
-        let outputFiles = argv.outputFiles.split(",");
-        outputFiles.forEach((filePath, idx) => {
-            if (filePath.includes(".") || Buffer.byteLength(filePath) >= maxFileLengthBytes) {
-                console.error(`Invalid output file: "${filePath}", using filekey`);
-                outputFiles[idx] = undefined;
-            }
-        });
-        argv.outputFiles = outputFiles;
-    } else {argv.outputFiles = []}
-        
-}
-/**
 Prints the help message.
 */
 function printHelp() {
@@ -419,51 +402,63 @@ function printHelp() {
     );
 }
 /**
-Parses the process arguments based on their formatting 
-and creates an argv variable containing raw, separated 
-argument data.
+Parses the process arguments and creates an argv 
+variable containing argument data. Changes global 
+variables based on the arguments passed in.
 */
 function processArgv(args) {
-    let argv = {_: []};
+    let argv = {
+        _: [],
+        outputFiles: [],
+    };
+    error = null;
     args.forEach(arg => {
-        if (arg.charAt(0) === "-") {
-            //flags
-            let flag = undefined;
-            if (arg.charAt(1) !== "-") {
-                switch (arg.charAt(1)) {
-                    //match up single dash flags with double dash flags
-                    case "b":
-                        flag = "bucket";
-                        break;
-                    case "d":
-                        flag = "debug";
-                        break;
-                    case "n":
-                        flag = "noEncryption";
-                        break;
-                    case "o":
-                        flag = "outputFiles";
-                        break;
-                    case "p":
-                        flag = "port";
-                        break;
-                    default:
-                        break;
-                }
-            } else {
-                flag = arg.slice(2).split("=")[0];
-            }
-            //assign value to flag or mark it as true
-            const params = arg.split("=");
-            if (params.length === 2) {
-                argv[flag] = params[1];
-            } else {
-                argv[flag] = true;
-            }
-        } else {
-            //commands
-            argv._.push(arg);
+        if (error) {
+            throw new Error("Invalid parameter: " + error);
+        }
+        [symbol, params] = arg.split("=");
+        switch(symbol) {
+            // flags
+            case "--help":
+                argv.help = true;
+                break;
+            case "-d":
+            case "--debug":
+                if (params == undefined) {debug = true}
+                else {error = arg}
+                break;
+            case "-n":
+            case "--noEncryption":
+                if (params == undefined) {argv.noEncryption = true}
+                else {error = arg}
+                break;
+            
+            
+            // args
+            case "-p":
+            case "--port":
+                if (params && !isNaN(params)) {multicastPort = Number(params)}
+                else {error = arg}
+                break;
+            case "-o":
+            case "--outputFiles":
+                if (params) {argv.outputFiles = params.split(",")}
+                else {error = arg}
+                break;
+            case "-b":
+            case "--bucket":
+                if (params) {argv.bucket = params}
+                else {error = arg}
+                break;
+
+            // command or command arg
+            default:
+                if (!symbol.startsWith("-")) {argv._.push(symbol)} 
+                else {error = arg}
         }
     });
+    if (error) {
+        throw new Error("Invalid parameter: " + error);
+    }
     return argv;
 }

@@ -1,6 +1,5 @@
 #!/usr/bin/node
 
-const argv = processArgv(process.argv.slice(2));
 const app = require("express")();
 const fileUpload = require("express-fileupload");
 const errorHandler = require("errorhandler")
@@ -19,20 +18,19 @@ const uploadLogFormat = {columns: ["method","filename","uuid","bucket","datetime
 const downloadLogPath = `${__dirname}/logs/download_log.csv`;
 const downloadLogFormat = {columns: ["uuid","datetime"]};
 
-//testing variables
-let debug = false;
-if (argv.debug) {
-    debug = true;
-    console.log("DEBUG OUTPUT ON");
-}
-
 //Defaults
+let debug = false;
 let multicastPort = 5001;
 let httpPort = 0;
 let httpBoundPort = undefined;
 
-//change defaults according to argv
-argsHandler();
+//argv processing
+processArgv(process.argv.slice(2));
+
+//debug
+if (debug) {
+    console.log("DEBUG OUTPUT ON");
+}
 
 //MAIN CODE
 app.use(fileUpload());
@@ -404,40 +402,43 @@ function validUUID(val) {
     return true;
 }
 /**
-Parses the process arguments based on their formatting 
-and creates an argv variable containing raw, separated 
-argument data.
+Changes global variables based on the arguments passed in.
 */
 function processArgv(args) {
-    let argv = {_: []};
+    error = null;
     args.forEach(arg => {
-        switch (arg.charAt(0)) {
-            case "-":
-                switch (arg.charAt(1)) {
-                    case "-":
-                        const param = arg.slice(2);
-                        if (param.split("=").length === 2) {
-                            argv[param.split("=")[0]] = param.split("=")[1];
-                        } else {
-                            argv[param] = true;
-                        }
-                        break;
-                    default:
-                        //no single dash args implemented
-                        break;
-                }
+        if (error) {
+            throw new Error("Invalid parameter: " + error);
+        }
+        [symbol, params] = arg.split("=");
+        console.log("symbol: " + symbol);
+        console.log("params: " + params);
+        switch(symbol) {
+            // flags
+            case "-d":
+            case "--debug":
+                if (params == undefined) {debug = true}
+                else {error = arg}
                 break;
+            
+            // args
+            case "-m":
+            case "--mport":
+                if (params && !isNaN(params)) {multicastPort = Number(params)}
+                else {error = arg}
+                break;
+            case "-h":
+            case "--hport":
+                if (params && !isNaN(params)) {httpPort = Number(params)}
+                else {error = arg}
+                break;
+
+            // command or command arg
             default:
-                argv._.push(arg);
+                error = arg
         }
     });
-    return argv;
-}
-/**
-Processes the global argv variable and, based on its contents,
-makes changes to it and other global variables.
-*/
-function argsHandler() {
-    if (argv.mport && typeof argv.mport === "string" && argv.mport.length > 0) {multicastPort = argv.mport}
-    if (argv.hport && typeof argv.hport === "string" && argv.hport.length > 0) {httpPort = argv.hport}
+    if (error) {
+        throw new Error("Invalid parameter: " + error);
+    }
 }
