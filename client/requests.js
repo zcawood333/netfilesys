@@ -3,11 +3,12 @@ const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 
 class _Request {
-    constructor(method, intervalFunc, intervalPeriod, maxAttempts) {
+    constructor(method, intervalFunc, intervalPeriod, maxAttempts, arg) {
         this.method = method;
         this.intervalFunc = intervalFunc;
         this.intervalPeriod = intervalPeriod;
         this.maxAttempts = maxAttempts;
+        this.arg = arg; // fileKey for GetRequest and filePath for PutRequest
         this.interval = setInterval(() => {
             if (!this.intervalLock) {
                 if (this.attempts >= this.maxAttempts) {
@@ -35,7 +36,7 @@ class _Request {
 }
 class GetRequest extends _Request {
     constructor(fileKey, intervalFunc, intervalPeriod, maxAttempts, downloadFileDir, downloadFileName = undefined) {
-        super("GET", intervalFunc, intervalPeriod, maxAttempts);
+        super("GET", intervalFunc, intervalPeriod, maxAttempts, fileKey);
         this._checkFileKey(fileKey);
         this.encrypted = fileKey.length > 32 ? true : false;
         this.fileKey = fileKey;
@@ -120,7 +121,7 @@ class GetRequest extends _Request {
 }
 class PutRequest extends _Request {
     constructor(filePath, intervalFunc, intervalPeriod, maxAttempts, bucket, encrypted, uuid, fileSize) {
-        super("PUT", intervalFunc, intervalPeriod, maxAttempts);
+        super("PUT", intervalFunc, intervalPeriod, maxAttempts, filePath);
         this._checkFilePath(filePath);
         this.bucket = bucket;
         this.encrypted = encrypted;
