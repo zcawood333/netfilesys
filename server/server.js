@@ -47,11 +47,7 @@ app.get("/download/:uuid", (req, res) => {
 });
 
 app.put("/upload", (req, res) => {
-    uploadDirectFile(req, res);
-});
-
-app.post("/upload", (req, res) => {
-    uploadMultipartFile(req, res);
+    putFile(req, res);
 });
 
 //start http and multicast server
@@ -130,7 +126,7 @@ function multicastGet(message) {
     }
 }
 /**
-Parses a multicast message preceding a PUT/POST request
+Parses a multicast message preceding a PUT request
 and, if the server has enough room for the file to be 
 uploaded, sends a response to the source.
 */
@@ -145,69 +141,13 @@ function multicastUpload(message) {
     }
 }
 /**
-Handles an http POST request. It determines if the request 
-has an attached file and uploads it to the correct bucket 
-if possible. The file is stored under a UUID-based path. 
-It logs the upload if successful and sends a response to the
-source containing the UUID used to create the file path.
-*/
-function uploadMultipartFile(req, res) {
-    if (debug) {
-        console.log("POST request headers: ", req.headers);
-        console.log("Files: ", req.files);
-    }
-    //pulled from example: https://github.com/richardgirges/express-fileupload/tree/master/example
-    if (!req.files || Object.keys(req.files).length === 0) {
-        if (debug) {console.log("No files to upload")};
-        return res.status(400).send("No files were uploaded.");
-    }
-    
-    const noDashesUUID = genDashlessUUID();
-    let path;
-    try {
-        path = createPath(noDashesUUID, req);
-    } catch(err) {
-        console.error(err);
-        return res.status(400).send(err);
-    }
-    validateDirPath(path.slice(0,-2));
-    fp = req.files.fileKey;
-    fp.mv(path, err => {
-        if (err) {
-            if (debug) {console.log("File unable to be uploaded (1)", err)};
-            return res.status(500).send(err);
-        } else {
-            if (debug) {console.log(`File ${fp.name} uploaded to ${path}`)};
-            validateLogFile(uploadLogPath, uploadLogFormat);
-            const today = new Date(Date.now());
-            fs.appendFile(uploadLogPath, `POST,${fp.name},${noDashesUUID},${req.get("bucket")},${today.toISOString()}\n`, err => {
-                if (err) {
-                    if (debug) {console.log("File unable to be uploaded (2)", err)};
-                    fs.rm(path, err => {
-                        if (err) {
-                            if (debug) {console.log(`File ${fp.name} unable to be removed at ${path}`)};
-                        } else {
-                            if (debug) {console.log(`File ${fp.name} removed from ${path}`)};
-                        }
-                    });
-                    return res.status(500).send(err);
-                } else {
-                    if (debug) {console.log("File upload logged successfully")};
-                    res.send(noDashesUUID);
-                    bucketHandler(req.get("bucket"));
-                };
-            });
-        };
-    });
-}
-/**
 Handles an http PUT request. It uploads the request's contents 
 to the correct bucket if possible. The file is stored under a 
 UUID-based path. It logs the upload if successful and sends a 
 response to the source containing the UUID used to create the 
 file path.
 */
-function uploadDirectFile(req, res) {
+function putFile(req, res) {
     if (debug) {
         console.log("PUT request headers: ", req.headers);
     }

@@ -119,9 +119,9 @@ class GetRequest extends _Request {
         } catch {}
     }
 }
-class _UploadRequest extends _Request {
-    constructor(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
-        super(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
+class PutRequest extends _Request {
+    constructor(intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
+        super("PUT", intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
         this._checkFilePath(filePath);
         this.bucket = bucket;
         this.encrypted = encrypted;
@@ -184,18 +184,7 @@ class _UploadRequest extends _Request {
         } catch {}
     }
 }
-class PutRequest extends _UploadRequest {
-    constructor(intervalFunc = () => {}, intervalPeriod = 1000, maxAttempts = 0, req = null, hostname = "", port = null, bucket = "default", encrypted = true, filePath = "", uuid = "", fileSize = null) {
-        super("PUT", intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize);
-    }
-}
-class PostRequest extends _UploadRequest {
-    constructor(intervalFunc = () => {}, intervalPeriod = 1000, maxAttempts = 0, req = null, hostname = "", port = null, bucket = "default", encrypted = true, filePath = "", uuid = "", fileSize = null) {
-        super("POST", intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize);
-    }
-}
 
 
 module.exports.GetRequest = GetRequest;
 module.exports.PutRequest = PutRequest;
-module.exports.PostRequest = PostRequest;

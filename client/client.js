@@ -45,11 +45,8 @@ if (argv._.length > 0) {
         case "get":
             get();
             break;
-        case "post":
-            upload(post = true);
-            break;
         case "put":
-            upload(post = false);
+            put();
             break;
         default:
             throw new Error(`Unrecognized command: ${argv._[0]}`)
@@ -113,17 +110,17 @@ function httpGet(reqObj, callback = () => {}) {
     sendRequest(reqObj, undefined);
 }
 /**
-Main PUT/POST function that calls subfunctions to complete the requests. 
+Main PUT function that calls subfunctions to complete the requests. 
 It closes the multicast client when finished.
 */
-async function upload(post = false) {
+async function put() {
     //check arg to see if it is a valid filePath
     if (argv._.length < 2) {
-        throw new Error(`Usage: ${post ? "POST" : "PUT"} <filePath>...`);
+        throw new Error(`Usage: PUT <filePath>...`);
     }
     await initMulticastClient();
     const args = argv._.slice(1);
-    await uploadIterThroughArgs(args, post);
+    await putIterThroughArgs(args);
     closeMulticastClient(() => {
         const keys = Object.keys(requests);
         let close = true;
@@ -138,21 +135,16 @@ async function upload(post = false) {
     }, attemptTimeout);
 }
 /**
-Iterates through PUT/POST command arguments and creates PutRequest/PostRequest objects, 
+Iterates through PUT command arguments and creates PutRequest objects, 
 adding each to the global requests variable. It logs any errors 
 encountered when making the objects.
 */
-async function uploadIterThroughArgs(args, post = false) {
+async function putIterThroughArgs(args) {
     args.forEach(arg => {
         try {
             const fileSize = fs.statSync(arg).size + 8;
             const uuid = uuidv4().replace(/-/g, "");
-            let reqObj = null;
-            if (post) {
-                reqObj = new PostRequest(() => {sendMulticastMsg("u" + uuid + ":" + fileSize)}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
-            } else {
-                reqObj = new PutRequest(() => {sendMulticastMsg("u" + uuid + ":" + fileSize)}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
-            }
+            const reqObj = new PutRequest(() => {sendMulticastMsg("u" + uuid + ":" + fileSize)}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -161,34 +153,24 @@ async function uploadIterThroughArgs(args, post = false) {
     });
 }
 /**
-Initiates and completes a single http PUT/POST request based on the parameters 
+Initiates and completes a single http PUT request based on the parameters 
 in the request object.
 */
-function httpUpload(reqObj, callback = () => { }) {
+function httpPut(reqObj, callback = () => { }) {
     const options = {
         hostname: reqObj.hostname,
         port: reqObj.port,
         path: "/upload",
-        method: reqObj.method,
-    }
-    let form = undefined;
-    if (reqObj.method === "POST") {
-        form = new formData();
+        method: "PUT",
     }
     reqObj.readStream.on("end", () => {
-        if (debug) { console.log(`Sent ${reqObj.encrypted ? "encrypted" : "unencrypted"} ${reqObj.method} from filePath: ${reqObj.filePath}`); }
+        if (debug) { console.log(`Sent ${reqObj.encrypted ? "encrypted" : "unencrypted"} PUT from filePath: ${reqObj.filePath}`); }
     });
-    if (reqObj.method === "POST") {
-        form.append("fileKey", reqObj.readStream, reqObj.fileName);
-        options.headers = form.getHeaders();
-    }
     reqObj.req = http.request(options);
     reqObj.req.setHeader("bucket", reqObj.bucket);
-    if (reqObj.method === "PUT") {
-        reqObj.req.setHeader("fileName", reqObj.fileName);
-    }
+    reqObj.req.setHeader("fileName", reqObj.fileName);
     initRequest(reqObj, undefined, callback);
-    sendRequest(reqObj, reqObj.method === "PUT" ? reqObj.readStream : form);
+    sendRequest(reqObj, reqObj.readStream);
 }
 /**
 Initializes the multicast socket for the client and subscribes
@@ -242,7 +224,7 @@ async function initMulticastClient() {
                     //temporarily disable multicast messaging
                     reqObj.intervalLock = true;
                     //upload file to server claiming to have space
-                    httpUpload(reqObj, success => {
+                    httpPut(reqObj, success => {
                         if (success) {
                             delete requests[uuid];
                         } else {
@@ -289,10 +271,10 @@ function closeMulticastClient(checkFunction = () => {return true}, timeInterval 
 /**
 Initializes a single http request and determines the program's
 actions upon receiving a response. For GET requests, it 
-downloads the file sent and logs it. For PUT/POST requests, it 
+downloads the file sent and logs it. For PUT requests, it 
 logs a successful upload.
 */
-function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback = (success) => {return}) {
+function initRequest(reqObj, getCallback = (success) => {return}, putCallback = (success) => {return}) {
     reqObj.req.on("error", err => {
         console.error(err)
     });
@@ -306,7 +288,7 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
                 });
                 res.pipe(reqObj.writeStream);
             } else {
-                //successfully uploaded a file with POST or PUT
+                //successfully uploaded a file
                 reqObj.end();
             }
             res.on("data", d => {
@@ -315,23 +297,25 @@ function initRequest(reqObj, getCallback = (success) => {return}, uploadCallback
                     logDownload(reqObj, () => {
                         if (debug) { console.log("File download logged successfully"); }
                     });
-                } else if (reqObj.method === "POST" || reqObj.method === "PUT") {
+                } else if (reqObj.method === "PUT") {
                     logUpload(reqObj, d, () => {
                         if (debug) { console.log("File upload logged successfully"); }
                     });
+                } else {
+                    throw new Error("Unknown request type: " + reqObj.method)
                 }
             });
             getCallback(true); 
-            uploadCallback(true);
+            putCallback(true);
         } else {
             getCallback(false);
-            uploadCallback(false);
+            putCallback(false);
         }
     });
 }
 /**
 Sends an initialized http request based on its type.
-GET requests can just be end()ed, whereas PUT/POST
+GET requests can just be end()ed, whereas PUT
 requests have their upload file's contents piped to
 the request object.
 */
@@ -341,11 +325,10 @@ function sendRequest(reqObj, readStream = null) {
             reqObj.req.end();
             break;
         case "PUT":
-        case "POST":
             readStream.pipe(reqObj.req);
             break;
         default:
-            throw new Error(`${reqObj.method} is an invalid request type`);
+            throw new Error("Unknown request type: " + reqObj.method);
             break;
     }
     if (debug) {console.log("Sent ", reqObj.req.method, " request to ", reqObj.req.host, ":", reqObj.port)}
@@ -357,7 +340,7 @@ object and the UUID returned by the server.
 function logUpload(reqObj, serverUUID, callback = () => { }) {
     validateLogFile(uploadLogPath, uploadLogFormat, () => {
         const today = new Date(Date.now());
-        fs.appendFile(uploadLogPath, `${reqObj.method},${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);    
+        fs.appendFile(uploadLogPath, `PUT,${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);    
     });
 }
 /**
@@ -425,16 +408,16 @@ Prints the help message.
 */
 function printHelp() {
     console.log("Usage: <command> <param>... [-p, --port=portNumber] [-d, --debug]\n" +
-                "      command = GET | PUT | POST\n" +
+                "      command = GET | PUT\n" +
                 "      param = fileKey | filepath\n" +
                 "      port (-p): port multicast client binds and sends to\n" +
                 "      debug (-d): displays debugging output\n" +
                 "\n" +
                 "      GET <fileKey>... [-o, --outputFiles=fileName1,...]\n" + //fileKey will contain uuid and aes key and iv
-                "      fileKey = string logged after PUT or POST\n" +
+                "      fileKey = file identifier; found in log file after uploading with PUT\n" +
                 "      outputFiles (-o): names to save downloaded files as (leave empty for default e.g. fileName1,,fileName3)\n" +
                 "\n" +
-                "      PUT <filepath>... [-b, --bucket=bucket] [-n, --noEncryption]     (POST) is an alias for PUT but uses multipart/form-data\n" +
+                "      PUT <filepath>... [-b, --bucket=bucket] [-n, --noEncryption]\n" +
                 "      filepath = path to file for uploading\n" +
                 "      bucket (-b): bucket to upload file into\n" +
                 "      noEncryption (-n): uploads unencrypted file contents\n"
