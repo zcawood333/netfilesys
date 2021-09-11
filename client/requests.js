@@ -3,9 +3,8 @@ const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 
 class _Request {
-    constructor(method, intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, arg) {
+    constructor(method, intervalFunc, intervalPeriod, maxAttempts) {
         this.method = method;
-        this.req = req;
         this.intervalFunc = intervalFunc;
         this.intervalPeriod = intervalPeriod;
         this.maxAttempts = maxAttempts;
@@ -23,9 +22,9 @@ class _Request {
         }, intervalPeriod);
         this.intervalLock = false;
         this.attempts = 0;
-        this.hostname = hostname;
-        this.port = port;
-        this.arg = arg; //filekey for get requests
+        this.req = undefined;
+        this.hostname = undefined;
+        this.port = undefined;
         this.failed = false;
     }
     end() {
@@ -35,8 +34,8 @@ class _Request {
     }
 }
 class GetRequest extends _Request {
-    constructor(intervalFunc, intervalPeriod, maxAttempts, req = null, hostname = "", port = null, downloadFileDir = __dirname, downloadFileName = undefined, fileKey) {
-        super("GET", intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, fileKey);
+    constructor(fileKey, intervalFunc, intervalPeriod, maxAttempts, downloadFileDir, downloadFileName = undefined) {
+        super("GET", intervalFunc, intervalPeriod, maxAttempts);
         this._checkFileKey(fileKey);
         this.encrypted = fileKey.length > 32 ? true : false;
         this.fileKey = fileKey;
@@ -120,8 +119,8 @@ class GetRequest extends _Request {
     }
 }
 class PutRequest extends _Request {
-    constructor(intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, bucket, encrypted, filePath, uuid, fileSize) {
-        super("PUT", intervalFunc, intervalPeriod, maxAttempts, req, hostname, port, filePath);
+    constructor(filePath, intervalFunc, intervalPeriod, maxAttempts, bucket, encrypted, uuid, fileSize) {
+        super("PUT", intervalFunc, intervalPeriod, maxAttempts);
         this._checkFilePath(filePath);
         this.bucket = bucket;
         this.encrypted = encrypted;

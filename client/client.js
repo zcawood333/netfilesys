@@ -3,7 +3,6 @@
 const argv = processArgv(process.argv.slice(2));
 const http = require("http");
 const { v4: uuidv4 } = require("uuid");
-const formData = require("form-data");
 const fs = require("fs");
 const dgram = require("dgram");
 const multicastClient = dgram.createSocket({type: "udp4", reuseAddr: true});
@@ -86,7 +85,7 @@ encountered when making the objects.
 async function getIterThroughArgs(args) {
     args.forEach((arg, idx) => {
         try {
-            const reqObj = new GetRequest(() => {sendMulticastMsg("g" + arg.substr(0,32))}, attemptTimeout, numAttempts, undefined, undefined, undefined, downloadDir, argv.outputFiles[idx], arg);
+            const reqObj = new GetRequest(arg, () => {sendMulticastMsg("g" + arg.substr(0,32))}, attemptTimeout, numAttempts, downloadDir, argv.outputFiles[idx]);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -144,7 +143,7 @@ async function putIterThroughArgs(args) {
         try {
             const fileSize = fs.statSync(arg).size + 8;
             const uuid = uuidv4().replace(/-/g, "");
-            const reqObj = new PutRequest(() => {sendMulticastMsg("u" + uuid + ":" + fileSize)}, attemptTimeout, numAttempts, undefined, undefined, undefined, argv.bucket, !argv.noEncryption, arg, uuid, fileSize);
+            const reqObj = new PutRequest(arg, () => {sendMulticastMsg("u" + uuid + ":" + fileSize)}, attemptTimeout, numAttempts, argv.bucket, !argv.noEncryption, uuid, fileSize);
             if (debug) { console.log(reqObj); }
             requests[reqObj.uuid] = reqObj;
         } catch(err) {
@@ -396,7 +395,7 @@ function argsHandler() {
     if (argv.outputFiles && typeof argv.outputFiles === "string" && argv.outputFiles.length > 0) {
         let outputFiles = argv.outputFiles.split(",");
         outputFiles.forEach((filePath, idx) => {
-            if (filePath.length === 0 || filePath.includes(".") || Buffer.byteLength(filePath) >= maxFileLengthBytes) {
+            if (filePath.includes(".") || Buffer.byteLength(filePath) >= maxFileLengthBytes) {
                 console.error(`Invalid output file: "${filePath}", using filekey`);
                 outputFiles[idx] = undefined;
             }
