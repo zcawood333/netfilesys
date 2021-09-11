@@ -241,19 +241,12 @@ async function initMulticastClient() {
     multicastClient.bind(multicastPort, ipAddr);
 }
 /**
-Sends a single multicast message to a specified address
-and port. It can optionally close the multicast connection
-after sending the message.
+Sends a single multicast message to multicastAddr:multicastPort
 */
-function sendMulticastMsg(msg = "This is a sample multicast message (from client)", close = false, targetPort = multicastPort, targetAddr = multicastAddr) {
+function sendMulticastMsg(msg, callback = () => {}) {
     const message = new Buffer.from(msg);
-    multicastClient.send(message, 0, message.length, targetPort, targetAddr, () => {
-        if (close) {
-            multicastClient.close();
-            if (debug) { console.log("Multicast client closed") }
-        }
-    });
-    if (debug) { console.log("Sent " + message + " to " + targetAddr + ":" + targetPort) }
+    multicastClient.send(message, 0, message.length, multicastPort, multicastAddr, callback);
+    if (debug) { console.log("Sent " + message + " to " + multicastAddr + ":" + multicastPort) }
 }
 /**
 Uses a check function at regular intervals to determine 
@@ -299,7 +292,8 @@ function initRequest(reqObj, getCallback = (success) => {return}, putCallback = 
                         if (debug) { console.log("File download logged successfully"); }
                     });
                 } else if (reqObj.method === "PUT") {
-                    logUpload(reqObj, d, () => {
+                    reqObj.fileKey = `${d}${reqObj.key}${reqObj.iv}`;
+                    logUpload(reqObj, () => {
                         if (debug) { console.log("File upload logged successfully"); }
                     });
                 } else {
@@ -338,10 +332,10 @@ function sendRequest(reqObj, readStream = null) {
 Logs a successful upload based on the parameters in the request
 object and the UUID returned by the server.
 */
-function logUpload(reqObj, serverUUID, callback = () => { }) {
+function logUpload(reqObj, callback = () => { }) {
     validateLogFile(uploadLogPath, uploadLogFormat, () => {
         const today = new Date(Date.now());
-        fs.appendFile(uploadLogPath, `PUT,${reqObj.encrypted},${serverUUID}${reqObj.key}${reqObj.iv},${reqObj.bucket},${today.toISOString()}\n`, callback);    
+        fs.appendFile(uploadLogPath, `PUT,${reqObj.encrypted},${reqObj.fileKey},${reqObj.bucket},${today.toISOString()}\n`, callback);    
     });
 }
 /**
@@ -351,7 +345,7 @@ object.
 function logDownload(reqObj, callback = () => { }) { 
     validateLogFile(downloadLogPath, downloadLogFormat, () => {
         const today = new Date(Date.now());
-        fs.appendFile(downloadLogPath, `${reqObj.uuid}${reqObj.key}${reqObj.iv},${today.toISOString()}\n`, callback);
+        fs.appendFile(downloadLogPath, `${reqObj.fileKey},${today.toISOString()}\n`, callback);
     });
 }
 /**
