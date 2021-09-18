@@ -75,11 +75,13 @@ fs.put('example2.jpg', function(key, error) {
   console.log('File 2 got stored too!');
 }
 
-fs.wait();
+fs.wait(function() {
+    // syncronous
+    var key = fs.sync_put('example.jpg');
+    fs.sync_get(key, filename);
+  }
+);
 
-// syncronous
-var key = fs.sync_put('example.jpg');
-fs.sync_get(key, filename);
 
 ```
 ### Client C Example
