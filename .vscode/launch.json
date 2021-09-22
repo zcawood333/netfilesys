@@ -16,7 +16,7 @@
         },
         {
             "name": "Client GET",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -26,7 +26,7 @@
         },
         {
             "name": "Client GET (output file)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -36,7 +36,7 @@
         },
         {
             "name": "Client GET (multiple output files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -50,7 +50,7 @@
         },
         {
             "name": "Client GET (bad output file)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -60,7 +60,7 @@
         },
         {
             "name": "Client GET (multiple output files w/ bad output file)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -74,7 +74,7 @@
         },
         {
             "name": "Client GET (file doesn't exist)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -84,7 +84,7 @@
         },
         {
             "name": "Client GET (multiple files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -97,7 +97,7 @@
         },
         {
             "name": "Client GET (multiple files w/ nonexistent request)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -111,7 +111,7 @@
         },
         {
             "name": "Client GET (multiple files w/ invalid request)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -125,7 +125,7 @@
         },
         {
             "name": "Client GET (multiple files w/ nonexistent/invalid requests)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -140,7 +140,7 @@
         },
         {
             "name": "Client GET encrypted",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -150,7 +150,7 @@
         },
         {
             "name": "Client GET encrypted (output file)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -160,7 +160,7 @@
         },
         {
             "name": "Client GET encrypted (multiple output files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -174,7 +174,7 @@
         },
         {
             "name": "Client GET encrypted (bad output file)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -184,7 +184,7 @@
         },
         {
             "name": "Client GET encrypted (multiple output files w/ bad output file)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -198,7 +198,7 @@
         },
         {
             "name": "Client GET encrypted (file doesn't exist)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -208,7 +208,7 @@
         },
         {
             "name": "Client GET encrypted (multiple files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -221,7 +221,7 @@
         },
         {
             "name": "Client GET encrypted (multiple files w/ nonexistent request)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -235,7 +235,7 @@
         },
         {
             "name": "Client GET encrypted (multiple files w/ invalid request)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -249,7 +249,7 @@
         },
         {
             "name": "Client GET encrypted (multiple files w/ nonexistent/invalid requests)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -264,7 +264,7 @@
         },
         {
             "name": "Client GET encrypted/unencrypted (multiple files w/ nonexistent/invalid requests)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -284,7 +284,7 @@
         },
         {
             "name": "Client GET encrypted/unencrypted (multiple files, nonexistent/invalid requests, imbalanced/invalid/empty output files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -305,7 +305,7 @@
         },
         {
             "name": "Client PUT",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -315,7 +315,7 @@
         },
         {
             "name": "Client PUT ('std' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -325,7 +325,7 @@
         },
         {
             "name": "Client PUT ('tmp1' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -335,7 +335,7 @@
         },
         {
             "name": "Client PUT ('tmp2' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -345,7 +345,7 @@
         },
         {
             "name": "Client PUT ('tmp4' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -355,7 +355,7 @@
         },
         {
             "name": "Client PUT ('quick' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -365,7 +365,7 @@
         },
         {
             "name": "Client PUT (file doesn't exist)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -375,7 +375,7 @@
         },
         {
             "name": "Client PUT (multiple files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -388,7 +388,7 @@
         },
         {
             "name": "Client PUT (multiple files w/ nonexistent filepath)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -402,7 +402,7 @@
         },
         {
             "name": "Client PUT encrypted",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -412,7 +412,7 @@
         },
         {
             "name": "Client PUT encrypted ('std' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -422,7 +422,7 @@
         },
         {
             "name": "Client PUT encrypted ('tmp1' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -432,7 +432,7 @@
         },
         {
             "name": "Client PUT encrypted ('tmp2' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -442,7 +442,7 @@
         },
         {
             "name": "Client PUT encrypted ('tmp4' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -452,7 +452,7 @@
         },
         {
             "name": "Client PUT encrypted ('quick' bucket)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -462,7 +462,7 @@
         },
         {
             "name": "Client PUT encrypted (file doesn't exist)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -472,7 +472,7 @@
         },
         {
             "name": "Client PUT encrypted (multiple files)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -485,7 +485,7 @@
         },
         {
             "name": "Client PUT encrypted (multiple files w/ nonexistent filepath)",
-            "program": "${workspaceFolder}/client/client.js",
+            "program": "${workspaceFolder}/client/cmdClient.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
