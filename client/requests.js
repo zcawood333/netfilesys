@@ -120,7 +120,7 @@ class GetRequest extends _Request {
     }
 }
 class PutRequest extends _Request {
-    constructor(filePath, intervalFunc, intervalPeriod, maxAttempts, bucket, encrypted, uuid, fileSize) {
+    constructor(filePath, intervalFunc, intervalPeriod, maxAttempts, bucket, encrypted, uuid) {
         super("PUT", intervalFunc, intervalPeriod, maxAttempts, filePath);
         this._checkFilePath(filePath);
         this.bucket = bucket;
@@ -128,7 +128,7 @@ class PutRequest extends _Request {
         this.filePath = filePath;
         this.fileName = filePath.split("/").slice(-1)[0];
         this.uuid = uuid;
-        this.fileSize = fileSize; //additional 8 bytes to account for possible aes encryption padding
+        this.fileSize = fs.statSync(filePath).size + 8; //additional 8 bytes to account for possible aes encryption padding
         this.key = "";
         this.iv = "";
         if (this.encrypted) {
