@@ -116,6 +116,7 @@ class NetfilesysClient {
     */
     static async put(arg, bucket = 'std', encryption = true) {
         try {
+            const fileSize = fs.statSync(arg).size + 8;
             const uuid = uuidv4().replace(/-/g, "");
             const reqObj = new PutRequest(arg, () => {this._sendMulticastMsg("u" + uuid + ":" + fileSize)}, this.attemptTimeout, this.numAttempts, bucket, encryption, uuid);
             if (!this.initialized) {reqObj.intervalLock = true}
