@@ -123,7 +123,7 @@ class NetfilesysClient {
             if (this.debug) { console.log(reqObj); }
             this.requests[reqObj.uuid] = reqObj;
         } catch(err) {
-            return console.error(err);
+            throw new Error('NetFileSys put request failed', err)
         }
     }
     /**
