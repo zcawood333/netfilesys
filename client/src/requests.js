@@ -9,6 +9,9 @@ class _Request {
     this.intervalPeriod = intervalPeriod;
     this.maxAttempts = maxAttempts;
     this.arg = arg; // fileKey for GetRequest and filePath for PutRequest
+    this.resolve = null;
+    this.reject = null;
+    this.promise = new Promise((resolve, reject) => {this.resolve = resolve; this.reject = reject;});
     this.interval = setInterval(() => {
       if (!this.intervalLock) {
         if (this.attempts >= this.maxAttempts) {
@@ -32,7 +35,12 @@ class _Request {
   end () {
     try {
       clearInterval(this.interval);
-    } catch {}
+    } catch (err) {}
+    if (this.failed) {
+      this.reject(new Error(`Failed to fulfill ${this.method} request`));
+    } else {
+      this.resolve();
+    }
   }
 }
 class GetRequest extends _Request {

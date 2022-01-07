@@ -36,6 +36,12 @@ var _Request = /*#__PURE__*/function () {
     this.maxAttempts = maxAttempts;
     this.arg = arg; // fileKey for GetRequest and filePath for PutRequest
 
+    this.resolve = null;
+    this.reject = null;
+    this.promise = new Promise(function (resolve, reject) {
+      _this.resolve = resolve;
+      _this.reject = reject;
+    });
     this.interval = setInterval(function () {
       if (!_this.intervalLock) {
         if (_this.attempts >= _this.maxAttempts) {
@@ -64,7 +70,13 @@ var _Request = /*#__PURE__*/function () {
     value: function end() {
       try {
         clearInterval(this.interval);
-      } catch (_unused) {}
+      } catch (err) {}
+
+      if (this.failed) {
+        this.reject(new Error("Failed to fulfill ".concat(this.method, " request")));
+      } else {
+        this.resolve();
+      }
     }
   }]);
   return _Request;
@@ -169,7 +181,7 @@ var GetRequest = /*#__PURE__*/function (_Request2) {
           });
           return writeStream;
         }
-      } catch (_unused2) {
+      } catch (_unused) {
         this.end();
         throw new Error("Cannot generate ".concat(encrypted ? 'decryption tunnel' : 'writeStream', " to ").concat(downloadFilePath));
       }
@@ -181,13 +193,13 @@ var GetRequest = /*#__PURE__*/function (_Request2) {
 
       try {
         this.writeStream.close();
-      } catch (_unused3) {}
+      } catch (_unused2) {}
 
       try {
         if (this.failed) {
           fs.rm(this.downloadFilePath, function () {});
         }
-      } catch (_unused4) {}
+      } catch (_unused3) {}
     }
   }]);
   return GetRequest;
@@ -269,7 +281,7 @@ var PutRequest = /*#__PURE__*/function (_Request3) {
 
           return _readStream;
         }
-      } catch (_unused5) {
+      } catch (_unused4) {
         this.end();
         throw new Error("Cannot generate ".concat(encrypted ? 'encrypted ' : '', "readStream from file path ").concat(filePath));
       }
@@ -281,7 +293,7 @@ var PutRequest = /*#__PURE__*/function (_Request3) {
 
       try {
         this.readStream.close();
-      } catch (_unused6) {}
+      } catch (_unused5) {}
     }
   }]);
   return PutRequest;
