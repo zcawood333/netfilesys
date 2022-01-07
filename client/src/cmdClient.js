@@ -16,21 +16,39 @@ if (argv.debug) { console.log('argv: ', argv); }
 if (argv.help || (process.argv.length <= 2 || argv._length <= 0 || argv._[0] === 'help')) { // if help or no args
   printHelp();
   exit(0);
-}
-
-if (argv._.length > 0) {
+} else {
   fs.init(undefined, argv.multicastPort, undefined, undefined, undefined, undefined, undefined, argv.debug);
+  const numArgs = argv._.length - 1;
+  let numDone = 0;
   switch (argv._[0].toLowerCase()) {
     case 'get':
       argv._ = argv._.slice(1);
+      let idx = 0;
       argv._.forEach(arg => {
-        fs.get(arg);
+        fs.get(arg, argv.outputFiles[idx], err => {
+          if (err) {console.error(err);}
+          numDone++;
+          if (numDone == numArgs) {
+            fs.close();
+          }
+        });
+        idx++;
       });
       break;
     case 'put':
       argv._ = argv._.slice(1);
       argv._.forEach(arg => {
-        fs.put(arg, argv.bucket, !argv.noEncryption);
+        fs.put(arg, argv.bucket, !argv.noEncryption, (fileKey, err) => {
+          if (err) {
+            console.error(err);
+          } else {
+            console.log(fileKey);
+          }
+          numDone++;
+          if (numDone == numArgs) {
+            fs.close();
+          }
+        });
       });
       break;
     default:

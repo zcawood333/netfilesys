@@ -25,17 +25,29 @@ if (argv.help || process.argv.length <= 2 || argv._length <= 0 || argv._[0] === 
   // if help or no args
   printHelp();
   exit(0);
-}
-
-if (argv._.length > 0) {
+} else {
   fs.init(undefined, argv.multicastPort, undefined, undefined, undefined, undefined, undefined, argv.debug);
+  var numArgs = argv._.length - 1;
+  var numDone = 0;
 
   switch (argv._[0].toLowerCase()) {
     case 'get':
       argv._ = argv._.slice(1);
+      var idx = 0;
 
       argv._.forEach(function (arg) {
-        fs.get(arg);
+        fs.get(arg, argv.outputFiles[idx], function (err) {
+          if (err) {
+            console.error(err);
+          }
+
+          numDone++;
+
+          if (numDone == numArgs) {
+            fs.close();
+          }
+        });
+        idx++;
       });
 
       break;
@@ -44,7 +56,19 @@ if (argv._.length > 0) {
       argv._ = argv._.slice(1);
 
       argv._.forEach(function (arg) {
-        fs.put(arg, argv.bucket, !argv.noEncryption);
+        fs.put(arg, argv.bucket, !argv.noEncryption, function (fileKey, err) {
+          if (err) {
+            console.error(err);
+          } else {
+            console.log(fileKey);
+          }
+
+          numDone++;
+
+          if (numDone == numArgs) {
+            fs.close();
+          }
+        });
       });
 
       break;
