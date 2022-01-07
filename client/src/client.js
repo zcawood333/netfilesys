@@ -1,7 +1,7 @@
 #!/usr/bin/node
 
-import http from 'http';
-
+// import http from 'http';
+const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const dgram = require('dgram');
@@ -33,9 +33,9 @@ class NetfilesysClient {
                         multicastPort = 5001,
                         numAttempts = 8,
                         attemptTimeout = 200,
-                        downloadDir = `${__dirname}/downloads`,
-                        uploadLogPath = `${__dirname}/logs/upload_log.csv`,
-                        downloadLogPath = `${__dirname}/logs/download_log.csv`,
+                        downloadDir = `${__dirname}/../downloads`,
+                        uploadLogPath = `${__dirname}/../logs/upload_log.csv`,
+                        downloadLogPath = `${__dirname}/../logs/download_log.csv`,
                         debug = false) {
         this.multicastAddr = multicastAddr;
         this.multicastPort = multicastPort;
@@ -79,9 +79,7 @@ class NetfilesysClient {
                         reqObj.intervalLock = true;
                         //get file from server claiming to have it
                         this._httpGet(reqObj, success => {
-                            if (success) {
-                                delete this.requests[uuid];
-                            } else {
+                            if (!success) {
                                 //keep trying the request
                                 reqObj.intervalLock = false;
                             }
@@ -98,9 +96,8 @@ class NetfilesysClient {
                         reqObj.intervalLock = true;
                         //upload file to server claiming to have space
                         this._httpPut(reqObj, success => {
-                            if (success) {
-                                delete this.requests[uuid];
-                            } else {
+                            if (!success) {
+                                //keep trying the request
                                 reqObj.intervalLock = false;
                             }
                         });
@@ -115,30 +112,46 @@ class NetfilesysClient {
     /**
     Main PUT function that creates a PutRequest object. 
     */
-    static async put(arg, bucket = 'std', encryption = true) {
+    static async put(arg, bucket = 'std', encryption = true, callback = (filekey, error) => {}) {
+        const fileSize = fs.statSync(arg).size + 8;
+        const uuid = uuidv4().replace(/-/g, '');
         try {
-            const fileSize = fs.statSync(arg).size + 8;
-            const uuid = uuidv4().replace(/-/g, '');
             const reqObj = new PutRequest(arg, () => {this._sendMulticastMsg('u' + uuid + ':' + fileSize);}, this.attemptTimeout, this.numAttempts, bucket, encryption, uuid);
             if (!this.initialized) {reqObj.intervalLock = true;}
             if (this.debug) { console.log(reqObj); }
             this.requests[reqObj.uuid] = reqObj;
+            await reqObj.promise;
+            callback(reqObj.filekey, null);
         } catch(err) {
-            throw new Error('NetFileSys put request failed', err);
+            // throw new Error('NetFileSys put request failed', err);
+            callback(null, err);
+        } finally {
+            if (this.requests[uuid]) {
+                delete this.requests[uuid];
+            }
         }
     }
     /**
     Main GET function that creates a GetRequest object.
     */
-    static async get(arg, outputFile) {
+    static async get(arg, outputFile, callback = (error) => {}) {
+        let uuid = null;
         try {
             const reqObj = new GetRequest(arg, () => {this._sendMulticastMsg('g' + arg.substr(0,32));}, this.attemptTimeout, this.numAttempts, this.downloadDir, outputFile);
+            uuid = reqObj.uuid;
             if (!this.initialized) {reqObj.intervalLock = true;}
             if (this.debug) { console.log(reqObj); }
             this.requests[reqObj.uuid] = reqObj;
+            await reqObj.promise;
+            callback(null);
         } catch(err) {
-            return console.error(err);
-        } 
+            // throw new Error('NetFileSys get request failed', err);
+            callback(err);
+        } finally {
+            if (this.requests[uuid]) {
+                delete this.requests[uuid];
+            }
+        }
     }
     /**
     Closes the multicast client connection.
@@ -150,7 +163,7 @@ class NetfilesysClient {
     Initiates and completes a single http GET request based on the parameters 
     in the request object.
     */
-    static _httpGet(reqObj, callback = () => {}) {
+    static _httpGet(reqObj, callback = success => {return;}) {
         const options = {
             hostname: reqObj.hostname,
             port: reqObj.port,
@@ -204,16 +217,6 @@ class NetfilesysClient {
         reqObj.req.on('response', res => {
             if (this.debug) { console.log(`Status code: ${res.statusCode}`); }
             if (res.statusCode === 200) {
-                if (reqObj.method === 'GET') {
-                    reqObj.writeStream.on('finish', () => { 
-                        if (this.debug) { console.log(`File downloaded to ${reqObj.downloadFilePath}`);}
-                        reqObj.end();
-                    });
-                    res.pipe(reqObj.writeStream);
-                } else {
-                    //successfully uploaded a file
-                    reqObj.end();
-                }
                 res.on('data', d => {
                     if (this.debug) { console.log('Data: ', d.toString()); }
                     if (reqObj.method === 'GET') {
@@ -229,6 +232,16 @@ class NetfilesysClient {
                         throw new Error('Unknown request type: ' + reqObj.method);
                     }
                 });
+                if (reqObj.method === 'GET') {
+                    reqObj.writeStream.on('finish', () => { 
+                        if (this.debug) { console.log(`File downloaded to ${reqObj.downloadFilePath}`);}
+                        reqObj.end();
+                    });
+                    res.pipe(reqObj.writeStream);
+                } else {
+                    //successfully uploaded a file
+                    reqObj.end();
+                }
                 getCallback(true); 
                 putCallback(true);
             } else {

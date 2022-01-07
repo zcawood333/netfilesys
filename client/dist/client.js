@@ -1,4 +1,5 @@
 #!/usr/bin/node
+// import http from 'http';
 "use strict";
 
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
@@ -13,7 +14,7 @@ var _createClass2 = _interopRequireDefault(require("@babel/runtime/helpers/creat
 
 var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
 
-var _http = _interopRequireDefault(require("http"));
+var http = require('http');
 
 var _require = require('uuid'),
     uuidv4 = _require.v4;
@@ -80,9 +81,9 @@ var NetfilesysClient = /*#__PURE__*/function () {
                 multicastPort = _args.length > 1 && _args[1] !== undefined ? _args[1] : 5001;
                 numAttempts = _args.length > 2 && _args[2] !== undefined ? _args[2] : 8;
                 attemptTimeout = _args.length > 3 && _args[3] !== undefined ? _args[3] : 200;
-                downloadDir = _args.length > 4 && _args[4] !== undefined ? _args[4] : "".concat(__dirname, "/downloads");
-                uploadLogPath = _args.length > 5 && _args[5] !== undefined ? _args[5] : "".concat(__dirname, "/logs/upload_log.csv");
-                downloadLogPath = _args.length > 6 && _args[6] !== undefined ? _args[6] : "".concat(__dirname, "/logs/download_log.csv");
+                downloadDir = _args.length > 4 && _args[4] !== undefined ? _args[4] : "".concat(__dirname, "/../downloads");
+                uploadLogPath = _args.length > 5 && _args[5] !== undefined ? _args[5] : "".concat(__dirname, "/../logs/upload_log.csv");
+                downloadLogPath = _args.length > 6 && _args[6] !== undefined ? _args[6] : "".concat(__dirname, "/../logs/download_log.csv");
                 debug = _args.length > 7 && _args[7] !== undefined ? _args[7] : false;
                 this.multicastAddr = multicastAddr;
                 this.multicastPort = multicastPort;
@@ -145,9 +146,7 @@ var NetfilesysClient = /*#__PURE__*/function () {
                         reqObj.intervalLock = true; //get file from server claiming to have it
 
                         _this._httpGet(reqObj, function (success) {
-                          if (success) {
-                            delete _this.requests[uuid];
-                          } else {
+                          if (!success) {
                             //keep trying the request
                             reqObj.intervalLock = false;
                           }
@@ -166,9 +165,8 @@ var NetfilesysClient = /*#__PURE__*/function () {
                         _reqObj.intervalLock = true; //upload file to server claiming to have space
 
                         _this._httpPut(_reqObj, function (success) {
-                          if (success) {
-                            delete _this.requests[uuid];
-                          } else {
+                          if (!success) {
+                            //keep trying the request
                             _reqObj.intervalLock = false;
                           }
                         });
@@ -208,6 +206,7 @@ var NetfilesysClient = /*#__PURE__*/function () {
 
         var bucket,
             encryption,
+            callback,
             fileSize,
             uuid,
             reqObj,
@@ -218,9 +217,10 @@ var NetfilesysClient = /*#__PURE__*/function () {
               case 0:
                 bucket = _args2.length > 1 && _args2[1] !== undefined ? _args2[1] : 'std';
                 encryption = _args2.length > 2 && _args2[2] !== undefined ? _args2[2] : true;
-                _context2.prev = 2;
+                callback = _args2.length > 3 && _args2[3] !== undefined ? _args2[3] : function (filekey, error) {};
                 fileSize = fs.statSync(arg).size + 8;
                 uuid = uuidv4().replace(/-/g, '');
+                _context2.prev = 5;
                 reqObj = new PutRequest(arg, function () {
                   _this2._sendMulticastMsg('u' + uuid + ':' + fileSize);
                 }, this.attemptTimeout, this.numAttempts, bucket, encryption, uuid);
@@ -234,20 +234,35 @@ var NetfilesysClient = /*#__PURE__*/function () {
                 }
 
                 this.requests[reqObj.uuid] = reqObj;
-                _context2.next = 14;
+                _context2.next = 12;
+                return reqObj.promise;
+
+              case 12:
+                callback(reqObj.filekey, null);
+                _context2.next = 18;
                 break;
 
-              case 11:
-                _context2.prev = 11;
-                _context2.t0 = _context2["catch"](2);
-                throw new Error('NetFileSys put request failed', _context2.t0);
+              case 15:
+                _context2.prev = 15;
+                _context2.t0 = _context2["catch"](5);
+                // throw new Error('NetFileSys put request failed', err);
+                callback(null, _context2.t0);
 
-              case 14:
+              case 18:
+                _context2.prev = 18;
+
+                if (this.requests[uuid]) {
+                  delete this.requests[uuid];
+                }
+
+                return _context2.finish(18);
+
+              case 21:
               case "end":
                 return _context2.stop();
             }
           }
-        }, _callee2, this, [[2, 11]]);
+        }, _callee2, this, [[5, 15, 18, 21]]);
       }));
 
       function put(_x) {
@@ -266,15 +281,21 @@ var NetfilesysClient = /*#__PURE__*/function () {
       var _get = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee3(arg, outputFile) {
         var _this3 = this;
 
-        var reqObj;
+        var callback,
+            uuid,
+            reqObj,
+            _args3 = arguments;
         return _regenerator["default"].wrap(function _callee3$(_context3) {
           while (1) {
             switch (_context3.prev = _context3.next) {
               case 0:
-                _context3.prev = 0;
+                callback = _args3.length > 2 && _args3[2] !== undefined ? _args3[2] : function (error) {};
+                uuid = null;
+                _context3.prev = 2;
                 reqObj = new GetRequest(arg, function () {
                   _this3._sendMulticastMsg('g' + arg.substr(0, 32));
                 }, this.attemptTimeout, this.numAttempts, this.downloadDir, outputFile);
+                uuid = reqObj.uuid;
 
                 if (!this.initialized) {
                   reqObj.intervalLock = true;
@@ -286,19 +307,34 @@ var NetfilesysClient = /*#__PURE__*/function () {
 
                 this.requests[reqObj.uuid] = reqObj;
                 _context3.next = 10;
-                break;
-
-              case 7:
-                _context3.prev = 7;
-                _context3.t0 = _context3["catch"](0);
-                return _context3.abrupt("return", console.error(_context3.t0));
+                return reqObj.promise;
 
               case 10:
+                callback(null);
+                _context3.next = 16;
+                break;
+
+              case 13:
+                _context3.prev = 13;
+                _context3.t0 = _context3["catch"](2);
+                // throw new Error('NetFileSys get request failed', err);
+                callback(_context3.t0);
+
+              case 16:
+                _context3.prev = 16;
+
+                if (this.requests[uuid]) {
+                  delete this.requests[uuid];
+                }
+
+                return _context3.finish(16);
+
+              case 19:
               case "end":
                 return _context3.stop();
             }
           }
-        }, _callee3, this, [[0, 7]]);
+        }, _callee3, this, [[2, 13, 16, 19]]);
       }));
 
       function get(_x2, _x3) {
@@ -324,14 +360,16 @@ var NetfilesysClient = /*#__PURE__*/function () {
   }, {
     key: "_httpGet",
     value: function _httpGet(reqObj) {
-      var callback = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function () {};
+      var callback = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function (success) {
+        return;
+      };
       var options = {
         hostname: reqObj.hostname,
         port: reqObj.port,
         path: '/download/' + reqObj.uuid,
         method: 'GET'
       };
-      reqObj.req = _http["default"].request(options);
+      reqObj.req = http.request(options);
 
       this._initRequest(reqObj, callback, undefined);
 
@@ -359,7 +397,7 @@ var NetfilesysClient = /*#__PURE__*/function () {
           console.log("Sent ".concat(reqObj.encrypted ? 'encrypted' : 'unencrypted', " PUT from filePath: ").concat(reqObj.filePath));
         }
       });
-      reqObj.req = _http["default"].request(options);
+      reqObj.req = http.request(options);
 
       if (reqObj.bucket != undefined) {
         reqObj.req.setHeader('bucket', reqObj.bucket);
@@ -413,20 +451,6 @@ var NetfilesysClient = /*#__PURE__*/function () {
         }
 
         if (res.statusCode === 200) {
-          if (reqObj.method === 'GET') {
-            reqObj.writeStream.on('finish', function () {
-              if (_this5.debug) {
-                console.log("File downloaded to ".concat(reqObj.downloadFilePath));
-              }
-
-              reqObj.end();
-            });
-            res.pipe(reqObj.writeStream);
-          } else {
-            //successfully uploaded a file
-            reqObj.end();
-          }
-
           res.on('data', function (d) {
             if (_this5.debug) {
               console.log('Data: ', d.toString());
@@ -450,6 +474,21 @@ var NetfilesysClient = /*#__PURE__*/function () {
               throw new Error('Unknown request type: ' + reqObj.method);
             }
           });
+
+          if (reqObj.method === 'GET') {
+            reqObj.writeStream.on('finish', function () {
+              if (_this5.debug) {
+                console.log("File downloaded to ".concat(reqObj.downloadFilePath));
+              }
+
+              reqObj.end();
+            });
+            res.pipe(reqObj.writeStream);
+          } else {
+            //successfully uploaded a file
+            reqObj.end();
+          }
+
           getCallback(true);
           putCallback(true);
         } else {
