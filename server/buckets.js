@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require("fs");
 const uploadsDir = `${__dirname}/uploads`;
 
 class Bucket{
@@ -13,17 +13,17 @@ class Bucket{
 }
 class DefaultBucket extends Bucket {
     constructor(name) {
-        super(name, '', 'default');
+        super(name, "", "default");
     }
 }
 class StandardBucket extends Bucket {
     constructor(name, mountPoint) {
-        super(name, mountPoint, 'std');
+        super(name, mountPoint, "std");
     }
 }
 class TempBucket extends Bucket {
     constructor(name, mountPoint, timeMin) {
-        super(name, mountPoint, 'tmp');
+        super(name, mountPoint, "tmp");
         this.timeMin = timeMin; //time after which files are deleted
         this.maxError = 0.1; //max percent of extra time files might live before deletion (e.g. files may live 0.1 ==> 10% longer than timeMin)
         this.cleanerFunc = () => {
@@ -35,9 +35,9 @@ class TempBucket extends Bucket {
 }
 class QuickBucket extends Bucket {
     constructor(name, mountPoint) {
-        super(name, mountPoint, 'quick');
+        super(name, mountPoint, "quick");
         this.files = {};
-        this.syncFunc = (dirPath, currUUID = '') => {
+        this.syncFunc = (dirPath, currUUID = "") => {
             let filesInFolder;
             try { filesInFolder = fs.readdirSync(dirPath); }
             catch(err) { return; } //dir doesn't exist, so no files
@@ -66,9 +66,9 @@ function initBuckets() {
     const tempBucketMultiplier = 2; //multiplier between temp buckets' cleaning intervals
     const tempBucketInit = 1; //fastest cleaning temp bucket's interval (min)
     const buckets = {};
-    buckets['default'] = new DefaultBucket('default');
-    buckets['std'] = new StandardBucket('std', 'std');
-    buckets['quick'] = new QuickBucket('quick', 'quick');
+    buckets["default"] = new DefaultBucket("default");
+    buckets["std"] = new StandardBucket("std", "std");
+    buckets["quick"] = new QuickBucket("quick", "quick");
     for(let i = tempBucketInit; i < tempBucketInit * Math.pow(tempBucketMultiplier, numTempBuckets); i *= tempBucketMultiplier) {
         buckets[`tmp${i}`] = new TempBucket(`tmp${i}`, `tmp${i}`, i);  
     }
